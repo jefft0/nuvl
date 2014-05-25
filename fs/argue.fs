@@ -53,6 +53,9 @@ type Argument =
   static member make p = 
     { TopRule = None; SubArguments = Set.empty; Conclusion = p.Name; Rules = Set.empty; Premises = Set.singleton p; 
       DirectSubArguments = Set.empty }
+  member this.isFirm() = Set.forall (fun p -> p.PropositionType = AXIOM) this.Premises
+
+type Attack = { From: int; To: int }
 
 type ArgumentationTheory =
   { Arguments: Set<Argument>; ArgumentsByIndex: Map<int, Argument> }
