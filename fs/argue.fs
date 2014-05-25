@@ -37,13 +37,13 @@ let rec nonFlatRule assumptions rules =
 let ensuredFlat assumptions rules = 
   match nonFlatRule assumptions (Set.toList rules) with
   | Some rule -> raise(System.ArgumentException("An assumption is the consequent of a rule " + rule.ToString()))
-  | None -> rules
+  | _ -> rules
 
 type Argument = 
   { TopRule: Rule option; SubArguments: Set<Argument>; Conclusion: string; Rules: Set<Rule>; Premises: Set<Proposition>; 
     DirectSubArguments: Set<Argument> }
   static member make(topRule, subArguments) = 
-    let rules = Set.fold (fun rules arg -> match arg.TopRule with Some r -> Set.add r rules | None -> rules) 
+    let rules = Set.fold (fun rules arg -> match arg.TopRule with Some r -> Set.add r rules | _ -> rules) 
                          (Set.singleton topRule) subArguments
     let premises = Set.fold (fun premises arg -> premises + arg.Premises) Set.empty subArguments
     { TopRule = Some topRule; SubArguments = subArguments; Conclusion = topRule.Consequent; Rules = rules; Premises = premises; 
@@ -53,16 +53,23 @@ type Argument =
   static member make p = 
     { TopRule = None; SubArguments = Set.empty; Conclusion = p.Name; Rules = Set.empty; Premises = Set.singleton p; 
       DirectSubArguments = Set.empty }
-  static member argumentIds(arguments) =
-    Set.fold (fun ids argument -> Map.add argument (ids.Count + 1) ids) Map.empty arguments
-  member this.toString argumentIds =
-    match this.TopRule with
-    | Some _ -> "A" + (Map.find this argumentIds).ToString() + ": " +
+
+type ArgumentationTheory =
+  { Arguments: Set<Argument>; ArgumentsByIndex: Map<int, Argument> }
+  // Compute ArgumentsByIndex from arguments.
+  static member make arguments =
+    { Arguments = arguments ; ArgumentsByIndex = Set.fold (fun map arg -> map.Add(map.Count, arg)) Map.empty arguments }
+  member this.getArgumentIndexesByConclusion c = 
+    Map.fold (fun indexes i arg -> if arg.Conclusion = c then Set.add i indexes else indexes) Set.empty this.ArgumentsByIndex
+  member this.indexOf argument = Map.findKey (fun _ arg -> arg = argument) this.ArgumentsByIndex
+  member this.toString argument =
+    match argument.TopRule with
+    | Some _ -> "A" + (this.indexOf argument).ToString() + ": " +
                  (Set.fold (fun subArgList subArg -> 
-                             subArgList + ", " + literalString subArg.Conclusion + subscript (Map.find subArg argumentIds)) 
-                           "" this.DirectSubArguments).Substring(2) +
-                 " -> " + literalString this.Conclusion
-    | None -> "A" + (Map.find this argumentIds).ToString() + ": " + literalString this.Conclusion
+                             subArgList + ", " + literalString subArg.Conclusion + subscript (this.indexOf subArg)) 
+                           "" argument.DirectSubArguments).Substring(2) +
+                 " -> " + literalString argument.Conclusion
+    | _ -> "A" + (this.indexOf argument).ToString() + ": " + literalString argument.Conclusion
 
 let rec cartesianSubProduct index sets =
   if index = Array.length sets then
@@ -80,7 +87,7 @@ let argsForAntecedent args r =
       Set.fold (fun antFF a -> 
          // So if this argument already contains this rule, we can't create a new arg.
          if not (a.Rules.Contains r) && a.Conclusion = ant then
-           let mapArgs = match Map.tryFind ant antFF with Some x -> x | None -> Set.singleton a
+           let mapArgs = match Map.tryFind ant antFF with Some x -> x | _ -> Set.singleton a
            antFF.Add(ant, mapArgs.Add a)
          else
            // Don't add.
