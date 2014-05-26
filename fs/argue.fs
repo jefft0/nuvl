@@ -58,10 +58,10 @@ type Argument =
 type Attack = { From: int; To: int }
 
 type ArgumentationTheory =
-  { Arguments: Set<Argument>; ArgumentsByIndex: Map<int, Argument> }
+  { ArgumentsByIndex: Map<int, Argument> }
   // Compute ArgumentsByIndex from arguments.
   static member make arguments =
-    { Arguments = arguments ; ArgumentsByIndex = Set.fold (fun map arg -> map.Add(map.Count, arg)) Map.empty arguments }
+    { ArgumentsByIndex = Set.fold (fun map arg -> map.Add(map.Count, arg)) Map.empty arguments }
   member this.getArgumentIndexesByConclusion c = 
     Map.fold (fun indexes i arg -> if arg.Conclusion = c then Set.add i indexes else indexes) Set.empty this.ArgumentsByIndex
   member this.indexOf argument = Map.findKey (fun _ arg -> arg = argument) this.ArgumentsByIndex
