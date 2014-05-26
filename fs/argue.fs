@@ -58,14 +58,14 @@ type Argument =
 type Attack = { From: int; To: int }
 
 type ArgumentationTheory =
-  { ArgumentsByIndex: Map<int, Argument> }
-  // Compute ArgumentsByIndex from arguments.
-  static member make arguments =
-    { ArgumentsByIndex = Set.fold (fun map arg -> map.Add(map.Count, arg)) Map.empty arguments }
+  { Arguments: Map<int, Argument> }
+  // Compute Arguments from an argument set.
+  static member make argumentSet =
+    { Arguments = Set.fold (fun map arg -> map.Add(map.Count, arg)) Map.empty argumentSet }
   member this.getArgumentIndexesByConclusion c = 
-    Map.fold (fun indexes i arg -> if arg.Conclusion = c then Set.add i indexes else indexes) Set.empty this.ArgumentsByIndex
-  member this.indexOf argument = Map.findKey (fun _ arg -> arg = argument) this.ArgumentsByIndex
-  member this.argumentIndexes() = Map.fold (fun indexes key _ -> Set.add key indexes) Set.empty this.ArgumentsByIndex
+    Map.fold (fun indexes i arg -> if arg.Conclusion = c then Set.add i indexes else indexes) Set.empty this.Arguments
+  member this.indexOf argument = Map.findKey (fun _ arg -> arg = argument) this.Arguments
+  member this.argumentIndexes() = Map.fold (fun indexes key _ -> Set.add key indexes) Set.empty this.Arguments
   member this.toString argument =
     match argument.TopRule with
     | Some _ -> "A" + (this.indexOf argument).ToString() + ": " +
@@ -139,7 +139,7 @@ let calculateAttack (theory:ArgumentationTheory) =
           attack (theory.getArgumentIndexesByConclusion(neg argument.Conclusion))
       else
         attack) 
-    Set.empty theory.ArgumentsByIndex
+    Set.empty theory.Arguments
 
 let calculateDefeat theory =
   let attack = calculateAttack theory
@@ -150,20 +150,20 @@ let calculateDefeat theory =
         let tempDefeat = Set.add att tempDefeatIn
         // If this argument is defeated, defeat any arguments in which it's a sub-argument.
         Map.fold (fun tempDefeat a3Key a3Arg -> 
-            if a3Arg.SubArguments.Contains theory.ArgumentsByIndex.[att.To] then 
+            if a3Arg.SubArguments.Contains theory.Arguments.[att.To] then 
               Set.add {From = att.From; To = a3Key} tempDefeat 
             else 
               tempDefeat)
-          tempDefeat theory.ArgumentsByIndex)
+          tempDefeat theory.Arguments)
       Set.empty attack
 
   Set.fold (fun tempDefeat2 d -> 
       Map.fold (fun tempDefeat2 aKey aArg -> 
-          if aArg.SubArguments.Contains theory.ArgumentsByIndex.[d.To] then
+          if aArg.SubArguments.Contains theory.Arguments.[d.To] then
             Set.add {From = d.From; To = aKey} tempDefeat2
           else
             tempDefeat2)
-        tempDefeat2 theory.ArgumentsByIndex) 
+        tempDefeat2 theory.Arguments) 
     tempDefeat tempDefeat
 
 let rec getGroundedExtHelper args activeAtts groundedExtIn =
