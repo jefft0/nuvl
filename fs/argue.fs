@@ -7,7 +7,7 @@ let subscriptChar (c:char) = (char)(0x2080 + ((int)c - (int)'0'))
 let rec subscript x = if x < 0 then "\u208b" + subscript -x else String.map subscriptChar (x.ToString())
 let setOfArray array = Set.ofArray array
 
-type PropositionType = AXIOM | PREMISE | ASSUMPTION
+type PropositionType = AXIOM | ASSUMPTION
 type Proposition = 
   { Name: string; PropositionType: PropositionType }
   static member make(name, propositionType) = {Name = name; PropositionType = propositionType}
@@ -190,8 +190,3 @@ let rec getGroundedExtHelper args activeAtts groundedExtIn =
     getGroundedExtHelper args activeAtts2 groundedExt
 
 let getGroundedExt args atts = getGroundedExtHelper args  atts Set.empty
-
-// f x y = y |> f x = y |> (x |> f) = x |> f <| y
-// f x (g y) = (g y) |> f x = (g y) |> (x |> f) = x |> f <| (g y)
-// (g >> f) x = (f << g) x = f (g x)
-// (f >> (>>) g) x y = g >> (f x) y = f x (g y)
