@@ -66,14 +66,14 @@ type ArgumentationTheory =
     Map.fold (fun indexes i arg -> if arg.Conclusion = c then Set.add i indexes else indexes) Set.empty this.Arguments
   member this.indexOf argument = Map.findKey (fun _ arg -> arg = argument) this.Arguments
   member this.argumentIndexes() = Map.fold (fun indexes key _ -> Set.add key indexes) Set.empty this.Arguments
-  member this.toString argument =
+  member this.toString i =
+    let argument = this.Arguments.[i]
     match argument.TopRule with
-    | Some _ -> "A" + (this.indexOf argument).ToString() + ": " +
-                 (Set.fold (fun subArgList subArg -> 
-                             subArgList + ", " + literalString subArg.Conclusion + subscript (this.indexOf subArg)) 
-                           "" argument.DirectSubArguments).Substring(2) +
-                 " -> " + literalString argument.Conclusion
-    | _ -> "A" + (this.indexOf argument).ToString() + ": " + literalString argument.Conclusion
+    | Some _ -> (Set.fold (fun subArgList subArg -> 
+                     subArgList + ", " + literalString subArg.Conclusion + subscript (this.indexOf subArg)) 
+                   "" argument.DirectSubArguments).Substring(2) +
+                " -> " + literalString argument.Conclusion + subscript i
+    | _ -> literalString argument.Conclusion + subscript i
 
 let rec cartesianSubProduct index sets =
   if index = Array.length sets then
