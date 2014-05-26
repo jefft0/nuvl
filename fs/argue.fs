@@ -65,6 +65,7 @@ type ArgumentationTheory =
   member this.getArgumentIndexesByConclusion c = 
     Map.fold (fun indexes i arg -> if arg.Conclusion = c then Set.add i indexes else indexes) Set.empty this.ArgumentsByIndex
   member this.indexOf argument = Map.findKey (fun _ arg -> arg = argument) this.ArgumentsByIndex
+  member this.argumentIndexes() = Map.fold (fun indexes key _ -> Set.add key indexes) Set.empty this.ArgumentsByIndex
   member this.toString argument =
     match argument.TopRule with
     | Some _ -> "A" + (this.indexOf argument).ToString() + ": " +
@@ -130,6 +131,30 @@ let constructArguments propositions rules =
 
   // Call the recursive method to obtain complex args.
   constructArgumentsHelper args rules
+
+let rec getGroundedExtHelper args activeAtts groundedExtIn =
+  // eligibleArgs is the arguments that aren't yet in groundedExt.
+  let eligibleArgs0 = args - groundedExtIn
+  // Remove everything in eligibleArgs that's attacked by non-defeated attackers.
+  let eligibleArgs = Set.fold (fun eligibleArgs tempAtt -> Set.remove tempAtt.To eligibleArgs) eligibleArgs0 activeAtts
+
+  if eligibleArgs.IsEmpty then
+    // If everything is attacked, the extension can't be further expanded, so done. 
+    groundedExtIn
+  else
+    // Otherwise add everything that isn't attacked to the extension.
+    let groundedExt = groundedExtIn + eligibleArgs
+
+    // defeated is the arguments that are attacked by groundedExt.
+    // Remove all attacks whose attackers are defeated by arguments in the extension.
+    let defeated = Set.fold (fun defeated attack -> 
+                       if (eligibleArgs.Contains attack.From) then Set.add attack.To defeated else defeated) 
+                     Set.empty activeAtts
+
+    let activeAtts2 = Set.filter (fun attack -> not (defeated.Contains attack.From)) activeAtts
+    getGroundedExtHelper args activeAtts2 groundedExt
+
+let getGroundedExt args atts = getGroundedExtHelper args  atts Set.empty
 
 // f x y = y |> f x = y |> (x |> f) = x |> f <| y
 // f x (g y) = (g y) |> f x = (g y) |> (x |> f) = x |> f <| (g y)
