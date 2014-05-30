@@ -16,8 +16,8 @@ type Proposition =
   override this.ToString() = literalString this.Name
 
 type Rule = 
-  { Consequent: string ; Antecedents: Set<string> }
-  static member make(consequent, antecedent) = {Consequent = consequent ; Antecedents = Set.singleton antecedent}
+  { Consequent: string; Antecedents: Set<string> }
+  static member make(consequent, antecedent) = {Consequent = consequent; Antecedents = Set.singleton antecedent}
 
   override this.ToString() = 
     (Set.fold (fun acc antecedent -> acc + ", " + literalString antecedent) "" this.Antecedents).Substring(2) +
@@ -58,12 +58,17 @@ type Argument =
 type Attack = { From: int; To: int }
 
 type ArgumentationTheory =
-  { Arguments: Map<int, Argument> }
+  { Arguments: Map<int, Argument>; ArgumentIndexesByConclusion: Map<string, int[]>}
   // Compute Arguments from an argument set.
   static member make argumentSet =
-    { Arguments = Set.fold (fun map arg -> map.Add(map.Count, arg)) Map.empty argumentSet }
-  member this.getArgumentIndexesByConclusion c = 
-    Map.fold (fun indexes i arg -> if arg.Conclusion = c then Set.add i indexes else indexes) Set.empty this.Arguments
+    let arguments = Set.fold (fun map arg -> Map.add map.Count arg map) Map.empty argumentSet
+    { Arguments = arguments;
+      ArgumentIndexesByConclusion = Map.fold (fun map i arg -> 
+          match Map.tryFind arg.Conclusion map with 
+          | Some array -> map.Add(arg.Conclusion, Array.append array [|i|]) 
+          | _ -> map.Add(arg.Conclusion, [|i|])) 
+        Map.empty arguments }
+  member this.getArgumentIndexesByConclusion c = match Map.tryFind c this.ArgumentIndexesByConclusion with Some a -> a | _ -> [||]
   member this.indexOf argument = Map.findKey (fun _ arg -> arg = argument) this.Arguments
   member this.argumentIndexes() = Map.fold (fun indexes key _ -> Set.add key indexes) Set.empty this.Arguments
   member this.toString i =
@@ -135,7 +140,7 @@ let constructArguments propositions rules =
 let calculateAttack (theory:ArgumentationTheory) =
   Map.fold (fun attack key argument -> 
       if argument.TopRule.IsNone && not (argument.isFirm()) then
-        Set.fold (fun attack a2 -> Set.add {From = a2; To = key} attack) 
+        Array.fold (fun attack a2 -> Set.add {From = a2; To = key} attack) 
           attack (theory.getArgumentIndexesByConclusion(neg argument.Conclusion))
       else
         attack) 
