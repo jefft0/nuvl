@@ -69,16 +69,19 @@ type ArgumentationTheory =
           | _ -> map.Add(arg.Conclusion, [|i|])) 
         Map.empty arguments }
   member this.getArgumentIndexesByConclusion c = match Map.tryFind c this.ArgumentIndexesByConclusion with Some a -> a | _ -> [||]
-  member this.indexOf argument = Map.findKey (fun _ arg -> arg = argument) this.Arguments
   member this.argumentIndexes() = Map.fold (fun indexes key _ -> Set.add key indexes) Set.empty this.Arguments
+  member this.indexOf argument = Map.findKey (fun _ arg -> arg = argument) this.Arguments
+  member this.conclusionString i = 
+    let conclusion = this.Arguments.[i].Conclusion
+    let indexesForConclusion = this.ArgumentIndexesByConclusion.[conclusion]
+    if indexesForConclusion.Length = 1 then 
+      literalString conclusion else literalString conclusion + subscript (1 + Array.findIndex ((=) i) indexesForConclusion)
   member this.toString i =
     let argument = this.Arguments.[i]
     match argument.TopRule with
-    | Some _ -> (Set.fold (fun subArgList subArg -> 
-                     subArgList + ", " + literalString subArg.Conclusion + subscript (this.indexOf subArg)) 
-                   "" argument.DirectSubArguments).Substring(2) +
-                " -> " + literalString argument.Conclusion + subscript i
-    | _ -> literalString argument.Conclusion + subscript i
+    | Some _ -> (Set.fold (fun subArgList subArg -> subArgList + ", " + this.conclusionString (this.indexOf subArg)) 
+                   "" argument.DirectSubArguments).Substring(2) + " -> " + this.conclusionString i
+    | _ -> this.conclusionString i
 
 let rec cartesianSubProduct index sets =
   if index = Array.length sets then
