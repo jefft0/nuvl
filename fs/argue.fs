@@ -1,7 +1,7 @@
 ﻿module ArgueLib.Argue
 
 let neg(literal:string) = if literal.StartsWith("~") then literal.Substring(1) else "~" + literal
-let literalString(literal:string) = if literal.Contains(" ") then "\"" + literal + "\"" else literal
+let literalString(literal:string) = if (literal.IndexOf " ") >= 0 then "\"" + literal + "\"" else literal
 let subscriptChar (c:char) = (char)(0x2080 + ((int)c - (int)'0'))
 // Return a string with the decimal value of x in subscript.
 let rec subscript x = if x < 0 then "\u208b" + subscript -x else String.map subscriptChar (x.ToString())
@@ -13,15 +13,17 @@ type Proposition =
   static member make(name, propositionType) = {Name = name; PropositionType = propositionType}
   static member makeAssumption(name) = {Name = name; PropositionType = ASSUMPTION}
   static member makeAxiom(name) = {Name = name; PropositionType = AXIOM}
-  override this.ToString() = literalString this.Name
+  static member toString(proposition) = literalString proposition.Name
+  member this.toString() = Proposition.toString(this)
 
 type Rule = 
   { Consequent: string; Antecedents: Set<string> }
+  static member make(consequent, antecedents) = {Consequent = consequent; Antecedents = antecedents}
   static member make(consequent, antecedent) = {Consequent = consequent; Antecedents = Set.singleton antecedent}
-
-  override this.ToString() = 
-    (Set.fold (fun acc antecedent -> acc + ", " + literalString antecedent) "" this.Antecedents).Substring(2) +
-     " -> " + literalString this.Consequent
+  static member toString(rule) = 
+    (Set.fold (fun acc antecedent -> acc + ", " + literalString antecedent) "" rule.Antecedents).Substring(2) +
+     " -> " + literalString rule.Consequent
+  member this.toString() = Rule.toString(this)
 
 let transpositions { Antecedents = antecedents; Consequent = consequent } =
   Set.map (fun antecedent -> 
