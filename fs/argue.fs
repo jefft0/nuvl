@@ -1,7 +1,8 @@
 ﻿module ArgueLib.Argue
 
 let neg(literal:string) = if literal.StartsWith("~") then literal.Substring(1) else "~" + literal
-let literalString(literal:string) = if (literal.IndexOf " ") >= 0 then "\"" + literal + "\"" else literal
+let literalString(literal:string) = if (literal.IndexOf " ") >= 0 || (literal.IndexOf "->") >= 0 then 
+                                      "\"" + literal + "\"" else literal
 let subscriptChar (c:char) = (char)(0x2080 + ((int)c - (int)'0'))
 // Return a string with the decimal value of x in subscript.
 let rec subscript x = if x < 0 then "\u208b" + subscript -x else String.map subscriptChar (x.ToString())
@@ -42,20 +43,21 @@ let ensuredFlat assumptions rules =
   | _ -> rules
 
 type Argument = 
-  { TopRule: Rule option; SubArguments: Set<Argument>; Conclusion: string; Rules: Set<Rule>; Premises: Set<Proposition>; 
+  { TopRule: Rule option; QuasiSubArguments: Set<Argument>; Conclusion: string; Rules: Set<Rule>; Premises: Set<Proposition>; 
     DirectSubArguments: Set<Argument> }
   static member make(topRule, subArguments) = 
     let rules = Set.fold (fun rules arg -> match arg.TopRule with Some r -> Set.add r rules | _ -> rules) 
                          (Set.singleton topRule) subArguments
     let premises = Set.fold (fun premises arg -> premises + arg.Premises) Set.empty subArguments
-    { TopRule = Some topRule; SubArguments = subArguments; Conclusion = topRule.Consequent; Rules = rules; Premises = premises; 
+    { TopRule = Some topRule; QuasiSubArguments = subArguments; Conclusion = topRule.Consequent; Rules = rules; Premises = premises; 
       // Populate the direct sub-arguments - those arguments whose conclusions are the antecedents of the top rule.
       DirectSubArguments = Set.filter (fun arg -> topRule.Antecedents.Contains arg.Conclusion) subArguments } 
   // From a single premise p.
   static member make p = 
-    { TopRule = None; SubArguments = Set.empty; Conclusion = p.Name; Rules = Set.empty; Premises = Set.singleton p; 
+    { TopRule = None; QuasiSubArguments = Set.empty; Conclusion = p.Name; Rules = Set.empty; Premises = Set.singleton p; 
       DirectSubArguments = Set.empty }
   member this.isFirm() = Set.forall (fun p -> p.PropositionType = AXIOM) this.Premises
+  member this.getSubArguments() = this.QuasiSubArguments // Set.fold (fun temp a -> a.DirectSubArguments + temp) Set.empty this.DirectSubArguments
 
 type Attack = { From: int; To: int }
 
@@ -165,7 +167,7 @@ let calculateDefeat theory =
         // If this argument is defeated, defeat any arguments in which it's a sub-argument.
         Set.fold (fun tempDefeat a3Index ->
             let a3 = theory.Arguments.[a3Index] 
-            if a3.SubArguments.Contains theory.Arguments.[att.To] then 
+            if a3.getSubArguments().Contains theory.Arguments.[att.To] then 
               Set.add {From = att.From; To = a3Index} tempDefeat 
             else 
               tempDefeat)
@@ -175,7 +177,7 @@ let calculateDefeat theory =
   Set.fold (fun tempDefeat2 d -> 
       Set.fold (fun tempDefeat2 aIndex  ->
           let a = theory.Arguments.[aIndex]
-          if a.SubArguments.Contains theory.Arguments.[d.To] then
+          if a.getSubArguments().Contains theory.Arguments.[d.To] then
             Set.add {From = d.From; To = aIndex} tempDefeat2
           else
             tempDefeat2)
@@ -205,4 +207,4 @@ let rec getGroundedExtHelper args activeAtts groundedExtIn =
     let activeAtts2 = Set.filter (fun attack -> not (defeated.Contains attack.From)) activeAtts
     getGroundedExtHelper args activeAtts2 groundedExt
 
-let getGroundedExt args atts = getGroundedExtHelper args  atts Set.empty
+let getGroundedExt args atts = getGroundedExtHelper args atts Set.empty
