@@ -57,7 +57,7 @@ type Argument =
     { TopRule = None; QuasiSubArguments = Set.empty; Conclusion = p.Name; Rules = Set.empty; Premises = Set.singleton p; 
       DirectSubArguments = Set.empty }
   member this.isFirm() = Set.forall (fun p -> p.PropositionType = AXIOM) this.Premises
-  member this.getSubArguments() = this.QuasiSubArguments // Set.fold (fun temp a -> a.DirectSubArguments + temp) Set.empty this.DirectSubArguments
+  member this.getSubArguments() = Set.fold (fun temp a -> a.DirectSubArguments + temp) this.DirectSubArguments this.DirectSubArguments
 
 type Attack = { From: int; To: int }
 
