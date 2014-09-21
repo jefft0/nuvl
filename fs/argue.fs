@@ -1,8 +1,10 @@
 ﻿module ArgueLib.Argue
 
 let neg(literal:string) = if literal.StartsWith("~") then literal.Substring(1) else "~" + literal
-let literalString(literal:string) = if (literal.IndexOf " ") >= 0 || (literal.IndexOf "->") >= 0 then 
-                                      "\"" + literal + "\"" else literal
+let literalString(literal:string) = 
+  if (literal.IndexOf " ") >= 0 || (literal.IndexOf "->") >= 0 then 
+    (if literal.[0] = '~' then "~\"" + literal.Substring(1) + "\"" else "\"" + literal + "\"")
+  else literal
 let subscriptChar (c:char) = (char)(0x2080 + ((int)c - (int)'0'))
 // Return a string with the decimal value of x in subscript.
 let rec subscript x = if x < 0 then "\u208b" + subscript -x else String.map subscriptChar (x.ToString())
@@ -57,7 +59,7 @@ type Argument =
     { TopRule = None; QuasiSubArguments = Set.empty; Conclusion = p.Name; Rules = Set.empty; Premises = Set.singleton p; 
       DirectSubArguments = Set.empty }
   member this.isFirm() = Set.forall (fun p -> p.PropositionType = AXIOM) this.Premises
-  member this.getSubArguments() = Set.fold (fun temp a -> a.DirectSubArguments + temp) this.DirectSubArguments this.DirectSubArguments
+  member this.getSubArguments() = Set.fold (fun temp (a:Argument) -> a.getSubArguments() + temp) this.DirectSubArguments this.DirectSubArguments
 
 type Attack = { From: int; To: int }
 
