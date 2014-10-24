@@ -9,7 +9,7 @@ namespace Nuvl
   {
     public class Item
     {
-      public int id_;
+      public readonly int Id;
       public readonly string EnLabel;
       public int[] instanceOf_ = null;
       public int[] subclassOf_ = null;
@@ -18,16 +18,19 @@ namespace Nuvl
 
       public Item(int id, string enLabel)
       {
+        Id = id;
         EnLabel = enLabel;
       }
 
-      public override string ToString()
+      public override string
+      ToString()
       {
-        return EnLabel == "" ? "Q" + id_ : EnLabel + " (Q" + id_ + ")";
+        return EnLabel == "" ? "Q" + Id : EnLabel + " (Q" + Id + ")";
       }
     }
 
-    public void dumpFromGZip(string gzipFilePath)
+    public void
+    dumpFromGZip(string gzipFilePath)
     {
       var nLines = 0;
 
@@ -131,7 +134,8 @@ namespace Nuvl
       }
     }
 
-    public void loadFromDump()
+    public void
+    loadFromDump()
     {
       var startTime = System.DateTime.Now;
       System.Console.Out.WriteLine(startTime);
@@ -216,7 +220,8 @@ namespace Nuvl
       System.Console.Out.WriteLine("Load elapsed " + (System.DateTime.Now - startTime));
     }
 
-    private void processLine(string line)
+    private void
+    processLine(string line)
     {
       // Assume one item or property per line.
 
@@ -238,7 +243,8 @@ namespace Nuvl
       }
     }
 
-    private void processItem(string line, int iIdStart)
+    private void
+    processItem(string line, int iIdStart)
     {
       var id = getInt(line, iIdStart, '\"');
       if (id < 0)
@@ -251,14 +257,15 @@ namespace Nuvl
       items_[id] = item;
 
       item.instanceOf_ = getPropertyValues
-        (line, 
+        (line,
          "\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P31\",\"datatype\":\"wikibase-item\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":");
       item.subclassOf_ = getPropertyValues
         (line,
          "\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P279\",\"datatype\":\"wikibase-item\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":");
     }
 
-    private void processProperty(string line, int iIdStart)
+    private void
+    processProperty(string line, int iIdStart)
     {
       var id = getInt(line, iIdStart, '\"');
       if (id < 0)
@@ -270,7 +277,8 @@ namespace Nuvl
       propertyEnLabels_[id] = enLabel;
     }
 
-    private static int[] getPropertyValues(string line, string propertyPrefix)
+    private static int[]
+    getPropertyValues(string line, string propertyPrefix)
     {
       var valueSet = new HashSet<int>();
       var iProperty = 0;
@@ -294,7 +302,8 @@ namespace Nuvl
       return result;
     }
 
-    private static int getInt(string line, int iStart, char endChar)
+    private static int
+    getInt(string line, int iStart, char endChar)
     {
       var iEndChar = line.IndexOf(endChar, iStart);
       if (iEndChar < 0)
@@ -303,7 +312,8 @@ namespace Nuvl
       return Int32.Parse(line.Substring(iStart, iEndChar - iStart));
     }
 
-    private static string getEnLabel(string line)
+    private static string
+    getEnLabel(string line)
     {
       var iLabelsStart = line.IndexOf("\"labels\":{\"");
       if (iLabelsStart < 0)
