@@ -9,15 +9,21 @@ namespace Nuvl
   {
     public class Item
     {
+      public int id_;
       public readonly string EnLabel;
       public int[] instanceOf_ = null;
       public int[] subclassOf_ = null;
       public HashSet<int> rootClasses_ = null;
       public bool hasSubclassOfLoop_ = true;
 
-      public Item(string enLabel)
+      public Item(int id, string enLabel)
       {
         EnLabel = enLabel;
+      }
+
+      public override string ToString()
+      {
+        return EnLabel == "" ? "Q" + id_ : EnLabel + " (Q" + id_ + ")";
       }
     }
 
@@ -143,7 +149,7 @@ namespace Nuvl
           var splitLine = line.Split(new char[] { '\t' });
           var id = Int32.Parse(splitLine[0]);
           if (!items_.ContainsKey(id))
-            items_[id] = new Wikidata.Item(splitLine[1]);
+            items_[id] = new Wikidata.Item(id, splitLine[1]);
         }
       }
 
@@ -241,7 +247,7 @@ namespace Nuvl
       var enLabel = getEnLabel(line);
       if (items_.ContainsKey(id))
         messages_.Add("Already have item Q" + id + " \"" + items_[id].EnLabel + "\". Got \"" + enLabel + "\"");
-      var item = new Item(enLabel);
+      var item = new Item(id, enLabel);
       items_[id] = item;
 
       item.instanceOf_ = getPropertyValues
