@@ -10,8 +10,8 @@ namespace Nuvl
     public class Item
     {
       public readonly string EnLabel;
-      public HashSet<int> instanceOf_ = null;
-      public HashSet<int> subclassOf_ = null;
+      public int[] instanceOf_ = null;
+      public int[] subclassOf_ = null;
       public HashSet<int> rootClasses_ = null;
       public bool hasSubclassOfLoop_ = true;
 
@@ -165,6 +165,7 @@ namespace Nuvl
 
       using (var file = new StreamReader(@"c:\temp\instanceOf.tsv"))
       {
+        var valueSet = new HashSet<int>();
         var nLines = 0;
         string line;
         while ((line = file.ReadLine()) != null)
@@ -175,15 +176,18 @@ namespace Nuvl
 
           var splitLine = line.Split(new char[] { '\t' });
           var item = items_[Int32.Parse(splitLine[0])];
-          item.instanceOf_ = new HashSet<int>();
 
+          valueSet.Clear();
           for (int i = 1; i < splitLine.Length; ++i)
-            item.instanceOf_.Add(Int32.Parse(splitLine[i]));
+            valueSet.Add(Int32.Parse(splitLine[i]));
+          item.instanceOf_ = new int[valueSet.Count];
+          valueSet.CopyTo(item.instanceOf_);
         }
       }
 
       using (var file = new StreamReader(@"c:\temp\subclassOf.tsv"))
       {
+        var valueSet = new HashSet<int>();
         var nLines = 0;
         string line;
         while ((line = file.ReadLine()) != null)
@@ -194,10 +198,12 @@ namespace Nuvl
 
           var splitLine = line.Split(new char[] { '\t' });
           var item = items_[Int32.Parse(splitLine[0])];
-          item.subclassOf_ = new HashSet<int>();
 
+          valueSet.Clear();
           for (int i = 1; i < splitLine.Length; ++i)
-            item.subclassOf_.Add(Int32.Parse(splitLine[i]));
+            valueSet.Add(Int32.Parse(splitLine[i]));
+          item.subclassOf_ = new int[valueSet.Count];
+          valueSet.CopyTo(item.subclassOf_);
         }
       }
 
@@ -238,12 +244,12 @@ namespace Nuvl
       var item = new Item(enLabel);
       items_[id] = item;
 
-      addPropertyValues
-        (line, ref item.instanceOf_,
-          "\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P31\",\"datatype\":\"wikibase-item\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":");
-      addPropertyValues
-        (line, ref item.subclassOf_,
-          "\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P279\",\"datatype\":\"wikibase-item\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":");
+      item.instanceOf_ = getPropertyValues
+        (line, 
+         "\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P31\",\"datatype\":\"wikibase-item\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":");
+      item.subclassOf_ = getPropertyValues
+        (line,
+         "\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P279\",\"datatype\":\"wikibase-item\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":");
     }
 
     private void processProperty(string line, int iIdStart)
@@ -258,8 +264,9 @@ namespace Nuvl
       propertyEnLabels_[id] = enLabel;
     }
 
-    private static void addPropertyValues(string line, ref HashSet<int> values, string propertyPrefix)
+    private static int[] getPropertyValues(string line, string propertyPrefix)
     {
+      var valueSet = new HashSet<int>();
       var iProperty = 0;
       while (true)
       {
@@ -270,12 +277,15 @@ namespace Nuvl
         iProperty += propertyPrefix.Length;
         var value = getInt(line, iProperty, '}');
         if (value >= 0)
-        {
-          if (values == null)
-            values = new HashSet<int>();
-          values.Add(value);
-        }
+          valueSet.Add(value);
       }
+
+      if (valueSet.Count == 0)
+        return null;
+
+      var result = new int[valueSet.Count];
+      valueSet.CopyTo(result);
+      return result;
     }
 
     private static int getInt(string line, int iStart, char endChar)
