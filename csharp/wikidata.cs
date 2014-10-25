@@ -39,13 +39,13 @@ namespace Nuvl
     /// Return a list of all Item which have subclass of the given id.
     /// </summary>
     /// <param name="id">The Item id which is the value of subclass of</param>
-    /// <returns>The list of Item which have subclass of id</returns>
-    public List<Item> haveSubclassOf(int id)
+    /// <returns>The list of Item which have subclass of id, sorted byte ToString()</returns>
+    public Item[] haveSubclassOf(int id)
     {
-      List<Item> result;
+      Item[] result;
       if (!cachedHaveSubclassOf_.TryGetValue(id, out result))
       {
-        result = new List<Item>();
+        var list = new List<Item>();
 
         foreach (var item in items_.Values)
         {
@@ -54,11 +54,13 @@ namespace Nuvl
             foreach (var value in item.subclassOf_)
             {
               if (value == id)
-                result.Add(item);
+                list.Add(item);
             }
           }
         }
 
+        list.Sort(new Item.StringComparer());
+        result = list.ToArray();
         cachedHaveSubclassOf_[id] = result;
       }
 
@@ -391,6 +393,6 @@ namespace Nuvl
     public List<string> messages_ = new List<string>();
     public Dictionary<int, Item> items_ = new Dictionary<int, Item>();
     public Dictionary<int, string> propertyEnLabels_ = new Dictionary<int, string>();
-    private Dictionary<int, List<Item>> cachedHaveSubclassOf_ = new Dictionary<int, List<Item>>();
+    private Dictionary<int, Item[]> cachedHaveSubclassOf_ = new Dictionary<int, Item[]>();
   }
 }
