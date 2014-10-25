@@ -14,7 +14,7 @@ namespace Nuvl
       public int[] instanceOf_ = null;
       public int[] subclassOf_ = null;
       public HashSet<int> rootClasses_ = null;
-      public bool hasSubclassOfLoop_ = true;
+      public bool hasSubclassOfLoop_ = false;
 
       public Item(int id, string enLabel)
       {
