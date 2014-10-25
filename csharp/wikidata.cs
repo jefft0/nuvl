@@ -27,6 +27,42 @@ namespace Nuvl
       {
         return EnLabel == "" ? "Q" + Id : EnLabel + " (Q" + Id + ")";
       }
+
+      public class StringComparer : IComparer<Item>
+      {
+        public int
+        Compare(Wikidata.Item item1, Wikidata.Item item2) { return String.Compare(item1.ToString(), item2.ToString()); }
+      }
+    }
+
+    /// <summary>
+    /// Return a list of all Item which have subclass of the given id.
+    /// </summary>
+    /// <param name="id">The Item id which is the value of subclass of</param>
+    /// <returns>The list of Item which have subclass of id</returns>
+    public List<Item> haveSubclassOf(int id)
+    {
+      List<Item> result;
+      if (!cachedHaveSubclassOf_.TryGetValue(id, out result))
+      {
+        result = new List<Item>();
+
+        foreach (var item in items_.Values)
+        {
+          if (item.subclassOf_ != null)
+          {
+            foreach (var value in item.subclassOf_)
+            {
+              if (value == id)
+                result.Add(item);
+            }
+          }
+        }
+
+        cachedHaveSubclassOf_[id] = result;
+      }
+
+      return result;
     }
 
     public void
@@ -40,7 +76,7 @@ namespace Nuvl
       {
         using (var gzip = new GZipStream(file, CompressionMode.Decompress))
         {
-#if false
+#if false // byte line buffer instead of ReadLine.
           var input = new byte[100000000];
           var partialLineLength = 0;
           var nBytesRead = 0;
@@ -256,12 +292,29 @@ namespace Nuvl
       var item = new Item(id, enLabel);
       items_[id] = item;
 
-      item.instanceOf_ = getPropertyValues
+      item.instanceOf_ = setToArray(getPropertyValues
         (line,
-         "\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P31\",\"datatype\":\"wikibase-item\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":");
-      item.subclassOf_ = getPropertyValues
+         "\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P31\",\"datatype\":\"wikibase-item\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":"));
+
+      var subclassOf = getPropertyValues
         (line,
          "\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P279\",\"datatype\":\"wikibase-item\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":");
+      if (subclassOf != null && subclassOf.Contains(id))
+      {
+        messages_.Add("Item is subclass of itself: " + enLabel + " (Q" + id + ")");
+        subclassOf.Remove(id);
+      }
+      item.subclassOf_ = setToArray(subclassOf);
+    }
+
+    private static T[] setToArray<T>(HashSet<T> set)
+    {
+      if (set == null)
+        return null;
+
+      var result = new T[set.Count];
+      set.CopyTo(result);
+      return result;
     }
 
     private void
@@ -277,7 +330,7 @@ namespace Nuvl
       propertyEnLabels_[id] = enLabel;
     }
 
-    private static int[]
+    private static HashSet<int>
     getPropertyValues(string line, string propertyPrefix)
     {
       var valueSet = new HashSet<int>();
@@ -297,9 +350,7 @@ namespace Nuvl
       if (valueSet.Count == 0)
         return null;
 
-      var result = new int[valueSet.Count];
-      valueSet.CopyTo(result);
-      return result;
+      return valueSet;
     }
 
     private static int
@@ -340,5 +391,6 @@ namespace Nuvl
     public List<string> messages_ = new List<string>();
     public Dictionary<int, Item> items_ = new Dictionary<int, Item>();
     public Dictionary<int, string> propertyEnLabels_ = new Dictionary<int, string>();
+    private Dictionary<int, List<Item>> cachedHaveSubclassOf_ = new Dictionary<int, List<Item>>();
   }
 }
