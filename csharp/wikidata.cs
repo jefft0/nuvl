@@ -22,28 +22,73 @@ namespace Nuvl
         EnLabel = enLabel;
       }
 
-      public override string
-      ToString()
-      {
-        return EnLabel == "" ? "Q" + Id : EnLabel + " (Q" + Id + ")";
-      }
-
       public class StringComparer : IComparer<Item>
       {
         public int
         Compare(Wikidata.Item item1, Wikidata.Item item2) { return String.Compare(item1.ToString(), item2.ToString()); }
       }
+
+      public override string
+      ToString()
+      {
+        return EnLabel == "" ? "Q" + Id : EnLabel + " (Q" + Id + ")";
+      }
     }
 
     /// <summary>
-    /// Return a list of all Item which have subclass of this (direct).
+    /// Return a sorted array of all values for subclass of recursively,
+    /// minus the items that are direct subclass of.
     /// </summary>
-    /// <param name="id">The Item id which is the value of subclass of</param>
-    /// <returns>The list of Item which have subclass of id, sorted byte ToString()</returns>
-    public Item[] haveSubclassOf(int id)
+    /// <param name="id">The Item id to get subclasses of</param>
+    /// <returns>The array of Item, sorted byte ToString()</returns>
+    public Item[] indirectSubclassOf(int id)
     {
       Item[] result;
-      if (!cachedHaveSubclassOf_.TryGetValue(id, out result))
+      if (!cachedIndirectSubclassOf_.TryGetValue(id, out result))
+      {
+        var item = items_[id];
+        if (item.subclassOf_ == null)
+          result = new Item[0];
+        else
+        {
+          var resultSet = new HashSet<Item>();
+          addAllSubclassOf(resultSet, item);
+
+          // Remove direct subclass of.
+          foreach (var value in item.subclassOf_)
+            resultSet.Remove(items_[value]);
+
+          result = setToArray(resultSet);
+          Array.Sort(result, new Item.StringComparer());
+          cachedIndirectSubclassOf_[id] = result;
+        }
+      }
+
+      return result;
+    }
+    
+    private void addAllSubclassOf(HashSet<Item> allSubclassOf, Item item)
+    {
+      if (item.subclassOf_ == null)
+        return;
+      foreach (var subclassId in item.subclassOf_)
+      {
+        var value = items_[subclassId];
+        allSubclassOf.Add(value);
+        if (!value.hasSubclassOfLoop_)
+          addAllSubclassOf(allSubclassOf, value);
+      }
+    }
+
+    /// <summary>
+    /// Return a sorted array of all Item which have subclass of this (direct).
+    /// </summary>
+    /// <param name="id">The Item id which is the value of subclass of</param>
+    /// <returns>The array of Item, sorted byte ToString()</returns>
+    public Item[] hasDirectSubclass(int id)
+    {
+      Item[] result;
+      if (!cachedHasDirectSubclass_.TryGetValue(id, out result))
       {
         var resultSet = new HashSet<Item>();
 
@@ -61,7 +106,7 @@ namespace Nuvl
 
         result = setToArray(resultSet);
         Array.Sort(result, new Item.StringComparer());
-        cachedHaveSubclassOf_[id] = result;
+        cachedHasDirectSubclass_[id] = result;
       }
 
       return result;
@@ -393,6 +438,7 @@ namespace Nuvl
     public List<string> messages_ = new List<string>();
     public Dictionary<int, Item> items_ = new Dictionary<int, Item>();
     public Dictionary<int, string> propertyEnLabels_ = new Dictionary<int, string>();
-    private Dictionary<int, Item[]> cachedHaveSubclassOf_ = new Dictionary<int, Item[]>();
+    private Dictionary<int, Item[]> cachedIndirectSubclassOf_ = new Dictionary<int, Item[]>();
+    private Dictionary<int, Item[]> cachedHasDirectSubclass_ = new Dictionary<int, Item[]>();
   }
 }
