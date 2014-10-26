@@ -10,7 +10,7 @@ namespace Nuvl
     public class Item
     {
       public readonly int Id;
-      public readonly string EnLabel;
+      public readonly string EnLabelWithId;
       public int[] instanceOf_ = null;
       public int[] subclassOf_ = null;
       public HashSet<int> hasSubclass_ = null;
@@ -20,36 +20,54 @@ namespace Nuvl
       public Item(int id, string enLabel)
       {
         Id = id;
-        EnLabel = enLabel;
+        EnLabelWithId = (enLabel == "" ? "Q" + Id : enLabel + " (Q" + Id + ")");
       }
 
       public class StringComparer : IComparer<Item>
       {
         public int
-        Compare(Wikidata.Item item1, Wikidata.Item item2) { return String.Compare(item1.ToString(), item2.ToString()); }
+        Compare(Wikidata.Item item1, Wikidata.Item item2) { return String.Compare(item1.EnLabelWithId, item2.EnLabelWithId); }
       }
 
-      public void addHasSubclass(int id)
+      public Item 
+      Me { get { return this; } }
+
+      public void 
+      addHasSubclass(int id)
       {
         if (hasSubclass_ == null)
           hasSubclass_ = new HashSet<int>();
         hasSubclass_.Add(id);
       }
 
+      /// <summary>
+      /// String the ID from EnLabelWithId and return just the EnLabel.
+      /// </summary>
+      /// <returns>The EnLabel or "" if EnLabelWithId is only the ID.</returns>
+      public string 
+      getEnLabel()
+      {
+        if (EnLabelWithId.StartsWith("Q") && !EnLabelWithId.Contains(" "))
+          return "";
+        else
+          return EnLabelWithId.Substring(0, EnLabelWithId.LastIndexOf(" ("));
+      }
+
       public override string
       ToString()
       {
-        return EnLabel == "" ? "Q" + Id : EnLabel + " (Q" + Id + ")";
+        return EnLabelWithId;
       }
     }
 
     /// <summary>
     /// Return a sorted array of all values for subclass of recursively,
-    /// minus the items that are direct subclass of.
+    /// minus the items that are direct values of subclass of.
     /// </summary>
-    /// <param name="id">The Item id to get subclasses of</param>
-    /// <returns>The array of Item, sorted byte ToString()</returns>
-    public Item[] indirectSubclassOf(int id)
+    /// <param name="id">The Item id.</param>
+    /// <returns>The array of Item, sorted byte ToString().</returns>
+    public Item[]
+    indirectSubclassOf(int id)
     {
       Item[] result;
       if (!cachedIndirectSubclassOf_.TryGetValue(id, out result))
@@ -74,7 +92,7 @@ namespace Nuvl
 
       return result;
     }
-    
+
     private void addAllSubclassOf(HashSet<Item> allSubclassOf, Item item)
     {
       if (item.subclassOf_ == null)
@@ -89,11 +107,12 @@ namespace Nuvl
     }
 
     /// <summary>
-    /// Return a sorted array of all Item which have subclass of this (direct).
+    /// Return a sorted array of all Item which are subclass of id (direct).
     /// </summary>
-    /// <param name="id">The Item id which is the value of subclass of</param>
-    /// <returns>The array of Item, sorted byte ToString()</returns>
-    public Item[] hasDirectSubclass(int id)
+    /// <param name="id">The Item id.</param>
+    /// <returns>The array of Item, sorted byte ToString().</returns>
+    public Item[] 
+    hasDirectSubclass(int id)
     {
       Item[] result;
       if (!cachedHasDirectSubclass_.TryGetValue(id, out result))
@@ -118,7 +137,14 @@ namespace Nuvl
       return result;
     }
 
-    public Item[] hasIndirectSubclass(int id)
+    /// <summary>
+    /// Return a sorted array of all items which are subclass of id recursively,
+    /// minus the items that are direct subclass of id.
+    /// </summary>
+    /// <param name="id">The Item id.</param>
+    /// <returns>The array of Item, sorted byte ToString().</returns>
+    public Item[]
+    hasIndirectSubclass(int id)
     {
       Item[] result;
       if (!cachedHasIndirectSubclass_.TryGetValue(id, out result))
@@ -142,7 +168,8 @@ namespace Nuvl
       return result;
     }
 
-    private void addAllHasSubclass(HashSet<Item> allHasSubclass, Item item)
+    private void
+    addAllHasSubclass(HashSet<Item> allHasSubclass, Item item)
     {
       if (item.hasSubclass_ != null)
       {
@@ -161,7 +188,7 @@ namespace Nuvl
     {
       var nLines = 0;
 
-      var startTime = System.DateTime.Now;
+      var startTime = DateTime.Now;
       System.Console.Out.WriteLine(startTime);
       using (var file = new FileStream(gzipFilePath, FileMode.Open, FileAccess.Read))
       {
@@ -213,7 +240,7 @@ namespace Nuvl
         }
       }
 
-      System.Console.Out.WriteLine("elapsed " + (System.DateTime.Now - startTime));
+      System.Console.Out.WriteLine("elapsed " + (DateTime.Now - startTime));
       System.Console.Out.WriteLine("nLines " + nLines);
 
       foreach (var message in messages_)
@@ -223,7 +250,7 @@ namespace Nuvl
       using (var file = new StreamWriter(@"c:\temp\itemEnLabels.tsv"))
       {
         foreach (var entry in items_)
-          file.WriteLine(entry.Key + "\t" + entry.Value.EnLabel);
+          file.WriteLine(entry.Key + "\t" + entry.Value.getEnLabel());
       }
 
       using (var file = new StreamWriter(@"c:\temp\propertyEnLabels.tsv"))
@@ -264,7 +291,7 @@ namespace Nuvl
     public void
     loadFromDump()
     {
-      var startTime = System.DateTime.Now;
+      var startTime = DateTime.Now;
       System.Console.Out.WriteLine(startTime);
 
       using (var file = new StreamReader(@"c:\temp\itemEnLabels.tsv"))
@@ -346,7 +373,7 @@ namespace Nuvl
 
       setHasSubclass();
 
-      System.Console.Out.WriteLine("Load elapsed " + (System.DateTime.Now - startTime));
+      System.Console.Out.WriteLine("Load elapsed " + (DateTime.Now - startTime));
     }
 
     private void setHasSubclass()
@@ -397,7 +424,7 @@ namespace Nuvl
 
       var enLabel = getEnLabel(line);
       if (items_.ContainsKey(id))
-        messages_.Add("Already have item Q" + id + " \"" + items_[id].EnLabel + "\". Got \"" + enLabel + "\"");
+        messages_.Add("Already have item id " + items_[id] + ". Got \"" + enLabel + "\"");
       var item = new Item(id, enLabel);
       items_[id] = item;
 
