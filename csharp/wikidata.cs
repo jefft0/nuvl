@@ -13,6 +13,7 @@ namespace Nuvl
       public readonly string EnLabel;
       public int[] instanceOf_ = null;
       public int[] subclassOf_ = null;
+      public HashSet<int> hasSubclass_ = null;
       public HashSet<int> debugRootClasses_ = null;
       public bool hasSubclassOfLoop_ = false;
 
@@ -26,6 +27,13 @@ namespace Nuvl
       {
         public int
         Compare(Wikidata.Item item1, Wikidata.Item item2) { return String.Compare(item1.ToString(), item2.ToString()); }
+      }
+
+      public void addHasSubclass(int id)
+      {
+        if (hasSubclass_ == null)
+          hasSubclass_ = new HashSet<int>();
+        hasSubclass_.Add(id);
       }
 
       public override string
@@ -90,26 +98,62 @@ namespace Nuvl
       Item[] result;
       if (!cachedHasDirectSubclass_.TryGetValue(id, out result))
       {
-        var resultSet = new HashSet<Item>();
+        var item = items_[id];
 
-        foreach (var item in items_.Values)
+        if (item.hasSubclass_ == null)
+          result = new Item[0];
+        else
         {
-          if (item.subclassOf_ != null)
-          {
-            foreach (var value in item.subclassOf_)
-            {
-              if (value == id)
-                resultSet.Add(item);
-            }
-          }
+          result = new Item[item.hasSubclass_.Count];
+          var i = 0;
+          foreach (var value in item.hasSubclass_)
+            result[i++] = items_[value];
+
+          Array.Sort(result, new Item.StringComparer());
         }
 
-        result = setToArray(resultSet);
-        Array.Sort(result, new Item.StringComparer());
         cachedHasDirectSubclass_[id] = result;
       }
 
       return result;
+    }
+
+    public Item[] hasIndirectSubclass(int id)
+    {
+      Item[] result;
+      if (!cachedHasIndirectSubclass_.TryGetValue(id, out result))
+      {
+        var item = items_[id];
+        var resultSet = new HashSet<Item>();
+        addAllHasSubclass(resultSet, item);
+
+        // Remove direct has subclass.
+        if (item.hasSubclass_ != null)
+        {
+          foreach (var subclassId in item.hasSubclass_)
+            resultSet.Remove(items_[subclassId]);
+        }
+
+        result = setToArray(resultSet);
+        Array.Sort(result, new Item.StringComparer());
+        cachedHasIndirectSubclass_[id] = result;
+      }
+
+      return result;
+    }
+
+    private void addAllHasSubclass(HashSet<Item> allHasSubclass, Item item)
+    {
+      if (item.hasSubclass_ != null)
+      {
+        foreach (var subclassId in item.hasSubclass_)
+        {
+          var subclass = items_[subclassId];
+          allHasSubclass.Add(subclass);
+          if (!subclass.hasSubclassOfLoop_)
+            addAllHasSubclass(allHasSubclass, subclass);
+        }
+      }
     }
 
     public void
@@ -300,7 +344,25 @@ namespace Nuvl
         }
       }
 
+      setHasSubclass();
+
       System.Console.Out.WriteLine("Load elapsed " + (System.DateTime.Now - startTime));
+    }
+
+    private void setHasSubclass()
+    {
+      foreach (var item in items_.Values)
+      {
+        if (item.subclassOf_ != null)
+        {
+          foreach (var id in item.subclassOf_)
+          {
+            Item value;
+            if (items_.TryGetValue(id, out value))
+              value.addHasSubclass(item.Id);
+          }
+        }
+      }
     }
 
     private void
@@ -440,5 +502,6 @@ namespace Nuvl
     public Dictionary<int, string> propertyEnLabels_ = new Dictionary<int, string>();
     private Dictionary<int, Item[]> cachedIndirectSubclassOf_ = new Dictionary<int, Item[]>();
     private Dictionary<int, Item[]> cachedHasDirectSubclass_ = new Dictionary<int, Item[]>();
+    private Dictionary<int, Item[]> cachedHasIndirectSubclass_ = new Dictionary<int, Item[]>();
   }
 }
