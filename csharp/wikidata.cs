@@ -13,7 +13,7 @@ namespace Nuvl
       public readonly string EnLabel;
       public int[] instanceOf_ = null;
       public int[] subclassOf_ = null;
-      public HashSet<int> rootClasses_ = null;
+      public HashSet<int> debugRootClasses_ = null;
       public bool hasSubclassOfLoop_ = false;
 
       public Item(int id, string enLabel)
@@ -36,7 +36,7 @@ namespace Nuvl
     }
 
     /// <summary>
-    /// Return a list of all Item which have subclass of the given id.
+    /// Return a list of all Item which have subclass of this (direct).
     /// </summary>
     /// <param name="id">The Item id which is the value of subclass of</param>
     /// <returns>The list of Item which have subclass of id, sorted byte ToString()</returns>
@@ -45,7 +45,7 @@ namespace Nuvl
       Item[] result;
       if (!cachedHaveSubclassOf_.TryGetValue(id, out result))
       {
-        var list = new List<Item>();
+        var resultSet = new HashSet<Item>();
 
         foreach (var item in items_.Values)
         {
@@ -54,13 +54,13 @@ namespace Nuvl
             foreach (var value in item.subclassOf_)
             {
               if (value == id)
-                list.Add(item);
+                resultSet.Add(item);
             }
           }
         }
 
-        list.Sort(new Item.StringComparer());
-        result = list.ToArray();
+        result = setToArray(resultSet);
+        Array.Sort(result, new Item.StringComparer());
         cachedHaveSubclassOf_[id] = result;
       }
 
