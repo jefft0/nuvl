@@ -10,17 +10,18 @@ namespace Nuvl
     public class Item
     {
       public readonly int Id;
-      public readonly string EnLabelWithId;
       public int[] instanceOf_ = null;
       public int[] subclassOf_ = null;
       public HashSet<int> hasSubclass_ = null;
       public HashSet<int> debugRootClasses_ = null;
       public bool hasSubclassOfLoop_ = false;
+      private string label_;
+      private bool labelHasId_ = false;
 
       public Item(int id, string enLabel)
       {
         Id = id;
-        EnLabelWithId = (enLabel == "" ? "Q" + Id : enLabel + " (Q" + Id + ")");
+        label_ = enLabel;
       }
 
       public class StringComparer : IComparer<Item>
@@ -40,17 +41,36 @@ namespace Nuvl
         hasSubclass_.Add(id);
       }
 
-      /// <summary>
-      /// String the ID from EnLabelWithId and return just the EnLabel.
-      /// </summary>
-      /// <returns>The EnLabel or "" if EnLabelWithId is only the ID.</returns>
       public string 
-      getEnLabel()
+      EnLabel
       {
-        if (EnLabelWithId.StartsWith("Q") && !EnLabelWithId.Contains(" "))
-          return "";
-        else
-          return EnLabelWithId.Substring(0, EnLabelWithId.LastIndexOf(" ("));
+        get
+        {
+          if (!labelHasId_)
+            return label_;
+          else {
+            // Need to strip the id.
+            if (label_.StartsWith("Q") && !label_.Contains(" "))
+              return "";
+            else
+              return label_.Substring(0, label_.LastIndexOf(" ("));
+          }
+        }
+      }
+
+      public string 
+      EnLabelWithId
+      {
+        get
+        {
+          if (!labelHasId_) {
+            // Add the Id to label_.
+            label_ = (label_ == "" ? "Q" + Id : label_ + " (Q" + Id + ")");
+            labelHasId_ = true;
+          }
+
+          return label_;
+        }
       }
 
       public override string
@@ -250,7 +270,7 @@ namespace Nuvl
       using (var file = new StreamWriter(@"c:\temp\itemEnLabels.tsv"))
       {
         foreach (var entry in items_)
-          file.WriteLine(entry.Key + "\t" + entry.Value.getEnLabel());
+          file.WriteLine(entry.Key + "\t" + entry.Value.EnLabel);
       }
 
       using (var file = new StreamWriter(@"c:\temp\propertyEnLabels.tsv"))
