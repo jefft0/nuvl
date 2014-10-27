@@ -245,10 +245,11 @@ namespace Nuvl
             {
               ++nLines;
               if (nLines % 10000 == 0)
-                System.Console.Out.WriteLine("nLines " + nLines);
+                System.Console.Out.Write("\rnLines " + nLines);
 
               processLine(line);
             }
+            System.Console.Out.WriteLine("");
           }
 #endif
         }
@@ -306,7 +307,6 @@ namespace Nuvl
     loadFromDump()
     {
       var startTime = DateTime.Now;
-      System.Console.Out.WriteLine(startTime);
 
       using (var file = new StreamReader(@"c:\temp\itemEnLabels.tsv"))
       {
@@ -316,13 +316,14 @@ namespace Nuvl
         {
           ++nLines;
           if (nLines % 100000 == 0)
-            System.Console.Out.WriteLine("nItemEnLabelsLines " + nLines);
+            System.Console.Out.Write("\rnItemEnLabelsLines " + nLines);
 
           var splitLine = line.Split(new char[] { '\t' });
           var id = Int32.Parse(splitLine[0]);
           if (!items_.ContainsKey(id))
             items_[id] = new Wikidata.Item(id, splitLine[1]);
         }
+        System.Console.Out.WriteLine("");
       }
 
       using (var file = new StreamReader(@"c:\temp\propertyEnLabels.tsv"))
@@ -333,12 +334,13 @@ namespace Nuvl
         {
           ++nLines;
           if (nLines % 100000 == 0)
-            System.Console.Out.WriteLine("nPropertyLabelsLines " + nLines);
+            System.Console.Out.Write("\rnPropertyLabelsLines " + nLines);
 
           var splitLine = line.Split(new char[] { '\t' });
           var id = Int32.Parse(splitLine[0]);
           propertyEnLabels_[id] = splitLine[1];
         }
+        System.Console.Out.WriteLine("");
       }
 
       using (var file = new StreamReader(@"c:\temp\instanceOf.tsv"))
@@ -350,7 +352,7 @@ namespace Nuvl
         {
           ++nLines;
           if (nLines % 100000 == 0)
-            System.Console.Out.WriteLine("nInstanceOfLines " + nLines);
+            System.Console.Out.Write("\rnInstanceOfLines " + nLines);
 
           var splitLine = line.Split(new char[] { '\t' });
           var item = items_[Int32.Parse(splitLine[0])];
@@ -361,6 +363,7 @@ namespace Nuvl
           item.instanceOf_ = new int[valueSet.Count];
           valueSet.CopyTo(item.instanceOf_);
         }
+        System.Console.Out.WriteLine("");
       }
 
       using (var file = new StreamReader(@"c:\temp\subclassOf.tsv"))
@@ -372,7 +375,7 @@ namespace Nuvl
         {
           ++nLines;
           if (nLines % 100000 == 0)
-            System.Console.Out.WriteLine("nsubclassOfLines " + nLines);
+            System.Console.Out.Write("\rnsubclassOfLines " + nLines);
 
           var splitLine = line.Split(new char[] { '\t' });
           var item = items_[Int32.Parse(splitLine[0])];
@@ -383,6 +386,7 @@ namespace Nuvl
           item.subclassOf_ = new int[valueSet.Count];
           valueSet.CopyTo(item.subclassOf_);
         }
+        System.Console.Out.WriteLine("");
       }
 
       setHasSubclass();
