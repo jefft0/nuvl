@@ -61,7 +61,7 @@ namespace Nuvl
         }
       }
 
-      public string 
+      public string
       EnLabelWithId
       {
         get
@@ -93,13 +93,11 @@ namespace Nuvl
     indirectSubclassOf(int id)
     {
       Item[] result;
-      if (!cachedIndirectSubclassOf_.TryGetValue(id, out result))
-      {
+      if (!cachedIndirectSubclassOf_.TryGetValue(id, out result)) {
         Item item;
         if (!items_.TryGetValue(id, out item) || item.subclassOf_ == null)
           result = new Item[0];
-        else
-        {
+        else {
           var resultSet = new HashSet<Item>();
           addAllSubclassOf(resultSet, item);
 
@@ -138,17 +136,15 @@ namespace Nuvl
     /// </summary>
     /// <param name="id">The Item id.</param>
     /// <returns>The array of Item, sorted byte ToString().</returns>
-    public Item[] 
+    public Item[]
     hasDirectSubclass(int id)
     {
       Item[] result;
-      if (!cachedHasDirectSubclass_.TryGetValue(id, out result))
-      {
+      if (!cachedHasDirectSubclass_.TryGetValue(id, out result)) {
         Item item;
         if (!items_.TryGetValue(id, out item) || item.hasSubclass_ == null)
           result = new Item[0];
-        else
-        {
+        else {
           result = new Item[item.hasSubclass_.Count];
           var i = 0;
           foreach (var value in item.hasSubclass_)
@@ -173,8 +169,7 @@ namespace Nuvl
     hasIndirectSubclass(int id)
     {
       Item[] result;
-      if (!cachedHasIndirectSubclass_.TryGetValue(id, out result))
-      {
+      if (!cachedHasIndirectSubclass_.TryGetValue(id, out result)) {
         Item item;
         if (!items_.TryGetValue(id, out item))
           result = new Item[0];
@@ -200,10 +195,8 @@ namespace Nuvl
     private void
     addAllHasSubclass(HashSet<Item> allHasSubclass, Item item)
     {
-      if (item.hasSubclass_ != null)
-      {
-        foreach (var subclassId in item.hasSubclass_)
-        {
+      if (item.hasSubclass_ != null) {
+        foreach (var subclassId in item.hasSubclass_) {
           var subclass = items_[subclassId];
           allHasSubclass.Add(subclass);
           if (!subclass.hasSubclassOfLoop_)
@@ -284,10 +277,8 @@ namespace Nuvl
 
       var startTime = DateTime.Now;
       System.Console.Out.WriteLine(startTime);
-      using (var file = new FileStream(gzipFilePath, FileMode.Open, FileAccess.Read))
-      {
-        using (var gzip = new GZipStream(file, CompressionMode.Decompress))
-        {
+      using (var file = new FileStream(gzipFilePath, FileMode.Open, FileAccess.Read)) {
+        using (var gzip = new GZipStream(file, CompressionMode.Decompress)) {
 #if false // byte line buffer instead of ReadLine.
           var input = new byte[100000000];
           var partialLineLength = 0;
@@ -318,11 +309,9 @@ namespace Nuvl
             }
           }
 #else
-          using (var reader = new StreamReader(gzip /* , Encoding.ASCII */))
-          {
+          using (var reader = new StreamReader(gzip /* , Encoding.ASCII */)) {
             string line;
-            while ((line = reader.ReadLine()) != null)
-            {
+            while ((line = reader.ReadLine()) != null) {
               ++nLines;
               if (nLines % 10000 == 0)
                 System.Console.Out.Write("\rnLines " + nLines);
@@ -342,24 +331,19 @@ namespace Nuvl
         System.Console.Out.WriteLine(message);
       System.Console.Out.WriteLine("");
 
-      using (var file = new StreamWriter(@"c:\temp\itemEnLabels.tsv"))
-      {
+      using (var file = new StreamWriter(@"c:\temp\itemEnLabels.tsv")) {
         foreach (var entry in items_)
           file.WriteLine(entry.Key + "\t" + entry.Value.getEnLabel());
       }
 
-      using (var file = new StreamWriter(@"c:\temp\propertyEnLabels.tsv"))
-      {
+      using (var file = new StreamWriter(@"c:\temp\propertyEnLabels.tsv")) {
         foreach (var entry in propertyEnLabels_)
           file.WriteLine(entry.Key + "\t" + entry.Value);
       }
 
-      using (var file = new StreamWriter(@"c:\temp\instanceOf.tsv"))
-      {
-        foreach (var entry in items_)
-        {
-          if (entry.Value.instanceOf_ != null)
-          {
+      using (var file = new StreamWriter(@"c:\temp\instanceOf.tsv")) {
+        foreach (var entry in items_) {
+          if (entry.Value.instanceOf_ != null) {
             file.Write(entry.Key);
             foreach (var value in entry.Value.instanceOf_)
               file.Write("\t" + value);
@@ -368,12 +352,9 @@ namespace Nuvl
         }
       }
 
-      using (var file = new StreamWriter(@"c:\temp\subclassOf.tsv"))
-      {
-        foreach (var entry in items_)
-        {
-          if (entry.Value.subclassOf_ != null)
-          {
+      using (var file = new StreamWriter(@"c:\temp\subclassOf.tsv")) {
+        foreach (var entry in items_) {
+          if (entry.Value.subclassOf_ != null) {
             file.Write(entry.Key);
             foreach (var value in entry.Value.subclassOf_)
               file.Write("\t" + value);
@@ -388,12 +369,10 @@ namespace Nuvl
     {
       var startTime = DateTime.Now;
 
-      using (var file = new StreamReader(@"c:\temp\itemEnLabels.tsv"))
-      {
+      using (var file = new StreamReader(@"c:\temp\itemEnLabels.tsv")) {
         var nLines = 0;
         string line;
-        while ((line = file.ReadLine()) != null)
-        {
+        while ((line = file.ReadLine()) != null) {
           ++nLines;
           if (nLines % 100000 == 0)
             System.Console.Out.Write("\rnItemEnLabelsLines " + nLines);
@@ -406,12 +385,10 @@ namespace Nuvl
         System.Console.Out.WriteLine("");
       }
 
-      using (var file = new StreamReader(@"c:\temp\propertyEnLabels.tsv"))
-      {
+      using (var file = new StreamReader(@"c:\temp\propertyEnLabels.tsv")) {
         var nLines = 0;
         string line;
-        while ((line = file.ReadLine()) != null)
-        {
+        while ((line = file.ReadLine()) != null) {
           ++nLines;
           if (nLines % 100000 == 0)
             System.Console.Out.Write("\rnPropertyLabelsLines " + nLines);
@@ -423,13 +400,11 @@ namespace Nuvl
         System.Console.Out.WriteLine("");
       }
 
-      using (var file = new StreamReader(@"c:\temp\instanceOf.tsv"))
-      {
+      using (var file = new StreamReader(@"c:\temp\instanceOf.tsv")) {
         var valueSet = new HashSet<int>();
         var nLines = 0;
         string line;
-        while ((line = file.ReadLine()) != null)
-        {
+        while ((line = file.ReadLine()) != null) {
           ++nLines;
           if (nLines % 100000 == 0)
             System.Console.Out.Write("\rnInstanceOfLines " + nLines);
@@ -446,13 +421,11 @@ namespace Nuvl
         System.Console.Out.WriteLine("");
       }
 
-      using (var file = new StreamReader(@"c:\temp\subclassOf.tsv"))
-      {
+      using (var file = new StreamReader(@"c:\temp\subclassOf.tsv")) {
         var valueSet = new HashSet<int>();
         var nLines = 0;
         string line;
-        while ((line = file.ReadLine()) != null)
-        {
+        while ((line = file.ReadLine()) != null) {
           ++nLines;
           if (nLines % 100000 == 0)
             System.Console.Out.Write("\rnsubclassOfLines " + nLines);
@@ -509,8 +482,7 @@ namespace Nuvl
       var itemPrefix = "{\"id\":\"Q";
       if (line.StartsWith(itemPrefix))
         processItem(line, itemPrefix.Length);
-      else
-      {
+      else {
         var propertyPrefix = "{\"id\":\"P";
         if (line.StartsWith(propertyPrefix))
           processProperty(line, propertyPrefix.Length);
@@ -540,8 +512,7 @@ namespace Nuvl
       var subclassOf = getPropertyValues
         (line,
          "\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P279\",\"datatype\":\"wikibase-item\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":");
-      if (subclassOf != null && subclassOf.Contains(id))
-      {
+      if (subclassOf != null && subclassOf.Contains(id)) {
         messages_.Add("Item is subclass of itself: " + enLabel + " (Q" + id + ")");
         subclassOf.Remove(id);
       }
@@ -576,8 +547,7 @@ namespace Nuvl
     {
       var valueSet = new HashSet<int>();
       var iProperty = 0;
-      while (true)
-      {
+      while (true) {
         iProperty = line.IndexOf(propertyPrefix, iProperty);
         if (iProperty < 0)
           break;
