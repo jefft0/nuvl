@@ -30,9 +30,6 @@ namespace Nuvl
         Compare(Wikidata.Item item1, Wikidata.Item item2) { return String.Compare(item1.EnLabelWithId, item2.EnLabelWithId); }
       }
 
-      public Item 
-      Me { get { return this; } }
-
       public void 
       addHasSubclass(int id)
       {
@@ -41,20 +38,17 @@ namespace Nuvl
         hasSubclass_.Add(id);
       }
 
-      public string 
-      EnLabel
+      public string
+      getEnLabel()
       {
-        get
-        {
-          if (!labelHasId_)
-            return label_;
-          else {
-            // Need to strip the id.
-            if (label_.StartsWith("Q") && !label_.Contains(" "))
-              return "";
-            else
-              return label_.Substring(0, label_.LastIndexOf(" ("));
-          }
+        if (!labelHasId_)
+          return label_;
+        else {
+          // Need to strip the id.
+          if (label_.StartsWith("Q") && !label_.Contains(" "))
+            return "";
+          else
+            return label_.Substring(0, label_.LastIndexOf(" ("));
         }
       }
 
@@ -270,7 +264,7 @@ namespace Nuvl
       using (var file = new StreamWriter(@"c:\temp\itemEnLabels.tsv"))
       {
         foreach (var entry in items_)
-          file.WriteLine(entry.Key + "\t" + entry.Value.EnLabel);
+          file.WriteLine(entry.Key + "\t" + entry.Value.getEnLabel());
       }
 
       using (var file = new StreamWriter(@"c:\temp\propertyEnLabels.tsv"))
