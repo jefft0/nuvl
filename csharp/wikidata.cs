@@ -95,8 +95,8 @@ namespace Nuvl
       Item[] result;
       if (!cachedIndirectSubclassOf_.TryGetValue(id, out result))
       {
-        var item = items_[id];
-        if (item.subclassOf_ == null)
+        Item item;
+        if (!items_.TryGetValue(id, out item) || item.subclassOf_ == null)
           result = new Item[0];
         else
         {
@@ -104,8 +104,11 @@ namespace Nuvl
           addAllSubclassOf(resultSet, item);
 
           // Remove direct subclass of.
-          foreach (var value in item.subclassOf_)
-            resultSet.Remove(items_[value]);
+          foreach (var valueId in item.subclassOf_) {
+            Item value;
+            if (items_.TryGetValue(valueId, out value))
+              resultSet.Remove(value);
+          }
 
           result = setToArray(resultSet);
           Array.Sort(result, new Item.StringComparer());
@@ -120,12 +123,13 @@ namespace Nuvl
     {
       if (item.subclassOf_ == null)
         return;
-      foreach (var subclassId in item.subclassOf_)
-      {
-        var value = items_[subclassId];
-        allSubclassOf.Add(value);
-        if (!value.hasSubclassOfLoop_)
-          addAllSubclassOf(allSubclassOf, value);
+      foreach (var valueId in item.subclassOf_) {
+        Item value;
+        if (items_.TryGetValue(valueId, out value)) {
+          allSubclassOf.Add(value);
+          if (!value.hasSubclassOfLoop_)
+            addAllSubclassOf(allSubclassOf, value);
+        }
       }
     }
 
@@ -140,9 +144,8 @@ namespace Nuvl
       Item[] result;
       if (!cachedHasDirectSubclass_.TryGetValue(id, out result))
       {
-        var item = items_[id];
-
-        if (item.hasSubclass_ == null)
+        Item item;
+        if (!items_.TryGetValue(id, out item) || item.hasSubclass_ == null)
           result = new Item[0];
         else
         {
@@ -172,19 +175,22 @@ namespace Nuvl
       Item[] result;
       if (!cachedHasIndirectSubclass_.TryGetValue(id, out result))
       {
-        var item = items_[id];
-        var resultSet = new HashSet<Item>();
-        addAllHasSubclass(resultSet, item);
+        Item item;
+        if (!items_.TryGetValue(id, out item))
+          result = new Item[0];
+        else {
+          var resultSet = new HashSet<Item>();
+          addAllHasSubclass(resultSet, item);
 
-        // Remove direct has subclass.
-        if (item.hasSubclass_ != null)
-        {
-          foreach (var subclassId in item.hasSubclass_)
-            resultSet.Remove(items_[subclassId]);
+          // Remove direct has subclass.
+          if (item.hasSubclass_ != null) {
+            foreach (var subclassId in item.hasSubclass_)
+              resultSet.Remove(items_[subclassId]);
+          }
+
+          result = setToArray(resultSet);
+          Array.Sort(result, new Item.StringComparer());
         }
-
-        result = setToArray(resultSet);
-        Array.Sort(result, new Item.StringComparer());
         cachedHasIndirectSubclass_[id] = result;
       }
 
@@ -207,6 +213,43 @@ namespace Nuvl
     }
 
     /// <summary>
+    /// Return a sorted array of all values for instance of plus their
+    /// subclass of recursively, minus the items that are direct values of instance of.
+    /// </summary>
+    /// <param name="id">The Item id.</param>
+    /// <returns>The array of Item, sorted byte ToString().</returns>
+    public Item[]
+    indirectInstanceOf(int id)
+    {
+      Item[] result;
+      if (!cachedIndirectInstanceOf_.TryGetValue(id, out result)) {
+        Item item;
+        if (!items_.TryGetValue(id, out item) || item.instanceOf_ == null)
+          result = new Item[0];
+        else {
+          var resultSet = new HashSet<Item>();
+
+          // Add indirect subclass of.
+          foreach (var valueId in item.instanceOf_)
+            resultSet.UnionWith(indirectSubclassOf(valueId));
+
+          // Remove direct subclass of.
+          foreach (var valueId in item.instanceOf_) {
+            Item value;
+            if (items_.TryGetValue(valueId, out value))
+              resultSet.Remove(value);
+          }
+
+          result = setToArray(resultSet);
+          Array.Sort(result, new Item.StringComparer());
+          cachedIndirectInstanceOf_[id] = result;
+        }
+      }
+
+      return result;
+    }
+
+    /// <summary>
     /// Return a sorted array of all Item which are instance of id (direct).
     /// </summary>
     /// <param name="id">The Item id.</param>
@@ -216,9 +259,8 @@ namespace Nuvl
     {
       Item[] result;
       if (!cachedHasDirectInstance_.TryGetValue(id, out result)) {
-        var item = items_[id];
-
-        if (item.hasInstance_ == null)
+        Item item;
+        if (!items_.TryGetValue(id, out item) || item.hasInstance_ == null)
           result = new Item[0];
         else {
           result = new Item[item.hasInstance_.Count];
@@ -429,7 +471,7 @@ namespace Nuvl
 
       System.Console.Out.Write("Finding instances and subclasses ...");
       setHasInstanceAndHasSubclass();
-      System.Console.Out.WriteLine("done.");
+      System.Console.Out.WriteLine(" done.");
 
       System.Console.Out.WriteLine("Load elapsed " + (DateTime.Now - startTime));
     }
@@ -590,9 +632,12 @@ namespace Nuvl
     public List<string> messages_ = new List<string>();
     public Dictionary<int, Item> items_ = new Dictionary<int, Item>();
     public Dictionary<int, string> propertyEnLabels_ = new Dictionary<int, string>();
+
     private Dictionary<int, Item[]> cachedIndirectSubclassOf_ = new Dictionary<int, Item[]>();
     private Dictionary<int, Item[]> cachedHasDirectSubclass_ = new Dictionary<int, Item[]>();
     private Dictionary<int, Item[]> cachedHasIndirectSubclass_ = new Dictionary<int, Item[]>();
+
+    private Dictionary<int, Item[]> cachedIndirectInstanceOf_ = new Dictionary<int, Item[]>();
     private Dictionary<int, Item[]> cachedHasDirectInstance_ = new Dictionary<int, Item[]>();
   }
 }
