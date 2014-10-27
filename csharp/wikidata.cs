@@ -11,6 +11,7 @@ namespace Nuvl
     {
       public readonly int Id;
       public int[] instanceOf_ = null;
+      public HashSet<int> hasInstance_ = null;
       public int[] subclassOf_ = null;
       public HashSet<int> hasSubclass_ = null;
       public HashSet<int> debugRootClasses_ = null;
@@ -30,7 +31,15 @@ namespace Nuvl
         Compare(Wikidata.Item item1, Wikidata.Item item2) { return String.Compare(item1.EnLabelWithId, item2.EnLabelWithId); }
       }
 
-      public void 
+      public void
+      addHasInstance(int id)
+      {
+        if (hasInstance_ == null)
+          hasInstance_ = new HashSet<int>();
+        hasInstance_.Add(id);
+      }
+
+      public void
       addHasSubclass(int id)
       {
         if (hasSubclass_ == null)
@@ -195,6 +204,35 @@ namespace Nuvl
             addAllHasSubclass(allHasSubclass, subclass);
         }
       }
+    }
+
+    /// <summary>
+    /// Return a sorted array of all Item which are instance of id (direct).
+    /// </summary>
+    /// <param name="id">The Item id.</param>
+    /// <returns>The array of Item, sorted byte ToString().</returns>
+    public Item[]
+    hasDirectInstance(int id)
+    {
+      Item[] result;
+      if (!cachedHasDirectInstance_.TryGetValue(id, out result)) {
+        var item = items_[id];
+
+        if (item.hasInstance_ == null)
+          result = new Item[0];
+        else {
+          result = new Item[item.hasInstance_.Count];
+          var i = 0;
+          foreach (var value in item.hasInstance_)
+            result[i++] = items_[value];
+
+          Array.Sort(result, new Item.StringComparer());
+        }
+
+        cachedHasDirectInstance_[id] = result;
+      }
+
+      return result;
     }
 
     public void
@@ -389,19 +427,26 @@ namespace Nuvl
         System.Console.Out.WriteLine("");
       }
 
-      setHasSubclass();
+      System.Console.Out.Write("Finding instances and subclasses ...");
+      setHasInstanceAndHasSubclass();
+      System.Console.Out.WriteLine("done.");
 
       System.Console.Out.WriteLine("Load elapsed " + (DateTime.Now - startTime));
     }
 
-    private void setHasSubclass()
+    private void setHasInstanceAndHasSubclass()
     {
-      foreach (var item in items_.Values)
-      {
-        if (item.subclassOf_ != null)
-        {
-          foreach (var id in item.subclassOf_)
-          {
+      foreach (var item in items_.Values) {
+        if (item.instanceOf_ != null) {
+          foreach (var id in item.instanceOf_) {
+            Item value;
+            if (items_.TryGetValue(id, out value))
+              value.addHasInstance(item.Id);
+          }
+        }
+
+        if (item.subclassOf_ != null) {
+          foreach (var id in item.subclassOf_) {
             Item value;
             if (items_.TryGetValue(id, out value))
               value.addHasSubclass(item.Id);
@@ -548,5 +593,6 @@ namespace Nuvl
     private Dictionary<int, Item[]> cachedIndirectSubclassOf_ = new Dictionary<int, Item[]>();
     private Dictionary<int, Item[]> cachedHasDirectSubclass_ = new Dictionary<int, Item[]>();
     private Dictionary<int, Item[]> cachedHasIndirectSubclass_ = new Dictionary<int, Item[]>();
+    private Dictionary<int, Item[]> cachedHasDirectInstance_ = new Dictionary<int, Item[]>();
   }
 }
