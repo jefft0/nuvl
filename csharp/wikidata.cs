@@ -14,6 +14,8 @@ namespace Nuvl
       public HashSet<int> hasInstance_ = null;
       public int[] subclassOf_ = null;
       public HashSet<int> hasSubclass_ = null;
+      public int[] partOf_ = null;
+      public HashSet<int> hasPart_ = null;
       public HashSet<int> debugRootClasses_ = null;
       public bool hasSubclassOfLoop_ = false;
       private string label_;
@@ -45,6 +47,14 @@ namespace Nuvl
         if (hasSubclass_ == null)
           hasSubclass_ = new HashSet<int>();
         hasSubclass_.Add(id);
+      }
+
+      public void
+      addHasPart(int id)
+      {
+        if (hasPart_ == null)
+          hasPart_ = new HashSet<int>();
+        hasPart_.Add(id);
       }
 
       public string
@@ -362,6 +372,21 @@ namespace Nuvl
           }
         }
       }
+
+      using (var file = new StreamWriter(@"c:\temp\partOf.tsv")) {
+        foreach (var entry in items_) {
+          if (entry.Value.partOf_ != null) {
+            file.Write(entry.Key);
+            foreach (var value in entry.Value.partOf_)
+              file.Write("\t" + value);
+            file.WriteLine("");
+          }
+        }
+      }
+
+      System.Console.Out.Write("Finding instances, subclasses and parts ...");
+      setHasInstanceHasSubclassAndHasPart();
+      System.Console.Out.WriteLine(" done.");
     }
 
     public void
@@ -442,14 +467,35 @@ namespace Nuvl
         System.Console.Out.WriteLine("");
       }
 
-      System.Console.Out.Write("Finding instances and subclasses ...");
-      setHasInstanceAndHasSubclass();
+      using (var file = new StreamReader(@"c:\temp\partOf.tsv")) {
+        var valueSet = new HashSet<int>();
+        var nLines = 0;
+        string line;
+        while ((line = file.ReadLine()) != null) {
+          ++nLines;
+          if (nLines % 100000 == 0)
+            System.Console.Out.Write("\rnpartOfLines " + nLines);
+
+          var splitLine = line.Split(new char[] { '\t' });
+          var item = items_[Int32.Parse(splitLine[0])];
+
+          valueSet.Clear();
+          for (int i = 1; i < splitLine.Length; ++i)
+            valueSet.Add(Int32.Parse(splitLine[i]));
+          item.partOf_ = new int[valueSet.Count];
+          valueSet.CopyTo(item.partOf_);
+        }
+        System.Console.Out.WriteLine("");
+      }
+
+      System.Console.Out.Write("Finding instances, subclasses and parts ...");
+      setHasInstanceHasSubclassAndHasPart();
       System.Console.Out.WriteLine(" done.");
 
       System.Console.Out.WriteLine("Load elapsed " + (DateTime.Now - startTime));
     }
 
-    private void setHasInstanceAndHasSubclass()
+    private void setHasInstanceHasSubclassAndHasPart()
     {
       foreach (var item in items_.Values) {
         if (item.instanceOf_ != null) {
@@ -465,6 +511,14 @@ namespace Nuvl
             Item value;
             if (items_.TryGetValue(id, out value))
               value.addHasSubclass(item.Id);
+          }
+        }
+
+        if (item.partOf_ != null) {
+          foreach (var id in item.partOf_) {
+            Item value;
+            if (items_.TryGetValue(id, out value))
+              value.addHasPart(item.Id);
           }
         }
       }
@@ -488,7 +542,7 @@ namespace Nuvl
           processProperty(line, propertyPrefix.Length);
         else
           throw new Exception
-          ("Not an item of property: " + line.Substring(25));
+          ("Not an item or property: " + line.Substring(25));
       }
     }
 
@@ -505,18 +559,12 @@ namespace Nuvl
       var item = new Item(id, enLabel);
       items_[id] = item;
 
-      item.instanceOf_ = setToArray(getPropertyValues
-        (line,
+      item.instanceOf_ = setToArray(getPropertyValues(item, "instance of", line,
          "\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P31\",\"datatype\":\"wikibase-item\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":"));
-
-      var subclassOf = getPropertyValues
-        (line,
-         "\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P279\",\"datatype\":\"wikibase-item\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":");
-      if (subclassOf != null && subclassOf.Contains(id)) {
-        messages_.Add("Item is subclass of itself: " + enLabel + " (Q" + id + ")");
-        subclassOf.Remove(id);
-      }
-      item.subclassOf_ = setToArray(subclassOf);
+      item.subclassOf_ = setToArray(getPropertyValues(item, "subclass of", line,
+         "\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P279\",\"datatype\":\"wikibase-item\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":"));
+      item.partOf_ = setToArray(getPropertyValues(item, "subclass of", line,
+         "\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P361\",\"datatype\":\"wikibase-item\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":"));
     }
 
     private static T[] setToArray<T>(HashSet<T> set)
@@ -542,8 +590,8 @@ namespace Nuvl
       propertyEnLabels_[id] = enLabel;
     }
 
-    private static HashSet<int>
-    getPropertyValues(string line, string propertyPrefix)
+    private HashSet<int>
+    getPropertyValues(Item item, string propertyName, string line, string propertyPrefix)
     {
       var valueSet = new HashSet<int>();
       var iProperty = 0;
@@ -554,14 +602,18 @@ namespace Nuvl
 
         iProperty += propertyPrefix.Length;
         var value = getInt(line, iProperty, '}');
-        if (value >= 0)
-          valueSet.Add(value);
+        if (value >= 0) {
+          if (value != item.Id)
+            valueSet.Add(value);
+          else
+            messages_.Add("Item is " + propertyName + " itself: " + item);
+        }
       }
 
       if (valueSet.Count == 0)
         return null;
-
-      return valueSet;
+      else
+        return valueSet;
     }
 
     private static int
