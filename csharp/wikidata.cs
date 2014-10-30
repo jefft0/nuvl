@@ -237,11 +237,14 @@ namespace Nuvl
         else {
           var resultSet = new HashSet<Item>();
 
-          // Add indirect subclass of.
-          foreach (var valueId in item.instanceOf_)
-            resultSet.UnionWith(indirectSubclassOf(valueId));
+          // Add subclass of.
+          foreach (var valueId in item.instanceOf_) {
+            Item value;
+            if (items_.TryGetValue(valueId, out value))
+              addAllHasSubclass(resultSet, value);
+          }
 
-          // Remove direct subclass of.
+          // Remove the direct classes from instance of.
           foreach (var valueId in item.instanceOf_) {
             Item value;
             if (items_.TryGetValue(valueId, out value))
