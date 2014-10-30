@@ -77,9 +77,14 @@ namespace Nuvl
         get
         {
           if (!labelHasId_) {
-            // Add the Id to label_.
-            label_ = (label_ == "" ? "Q" + Id : label_ + " (Q" + Id + ")");
-            labelHasId_ = true;
+            if (label_.Length == 0)
+              // Don't use up memory with just the Q ID string.
+              return "Q" + Id;
+            else {
+              // Add the Id to label_.
+              labelHasId_ = true;
+              label_ = label_ + " (Q" + Id + ")";
+            }
           }
 
           return label_;
