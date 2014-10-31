@@ -288,6 +288,34 @@ namespace Nuvl
       return result;
     }
 
+    /// <summary>
+    /// Return a sorted array of all Item which are part of id (direct).
+    /// </summary>
+    /// <param name="id">The Item id.</param>
+    /// <returns>The array of Item, sorted byte ToString().</returns>
+    public Item[]
+    hasDirectPart(int id)
+    {
+      Item[] result;
+      if (!cachedHasDirectPart_.TryGetValue(id, out result)) {
+        Item item;
+        if (!items_.TryGetValue(id, out item) || item.hasPart_ == null)
+          result = new Item[0];
+        else {
+          result = new Item[item.hasPart_.Count];
+          var i = 0;
+          foreach (var value in item.hasPart_)
+            result[i++] = items_[value];
+
+          Array.Sort(result, new Item.StringComparer());
+        }
+
+        cachedHasDirectPart_[id] = result;
+      }
+
+      return result;
+    }
+
     public void
     dumpFromGZip(string gzipFilePath)
     {
@@ -669,5 +697,7 @@ namespace Nuvl
 
     private Dictionary<int, Item[]> cachedIndirectInstanceOf_ = new Dictionary<int, Item[]>();
     private Dictionary<int, Item[]> cachedHasDirectInstance_ = new Dictionary<int, Item[]>();
+
+    private Dictionary<int, Item[]> cachedHasDirectPart_ = new Dictionary<int, Item[]>();
   }
 }
