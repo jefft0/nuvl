@@ -41,7 +41,6 @@ namespace Nuvl
           hasInstance_ = new HashSet<int>();
         hasInstance_.Add(id);
       }
-
       public void
       addHasSubclass(int id)
       {
@@ -49,7 +48,6 @@ namespace Nuvl
           hasSubclass_ = new HashSet<int>();
         hasSubclass_.Add(id);
       }
-
       public void
       addHasPart(int id)
       {
@@ -97,6 +95,22 @@ namespace Nuvl
       {
         return EnLabelWithId;
       }
+
+      public delegate ICollection<int> GetPropertyValues(Item item);
+      public static ICollection<int> getInstanceOf(Item item) { return item.instanceOf_; }
+      public static ICollection<int> getHasInstance(Item item) { return item.hasInstance_; }
+      public static ICollection<int> getSubclassOf(Item item) { return item.subclassOf_; }
+      public static ICollection<int> getHasSubclass(Item item) { return item.hasSubclass_; }
+      public static ICollection<int> getPartOf(Item item) { return item.partOf_; }
+      public static ICollection<int> getHasPart(Item item) { return item.hasPart_; }
+
+      public delegate void SetHasLoop(Item item, bool hasLoop);
+      public static void setHasSubclassOfLoop(Item item, bool hasLoop) { item.hasSubclassOfLoop_ = hasLoop; }
+      public static void setHasPartOfLoop(Item item, bool hasLoop) { item.hasPartOfLoop_ = hasLoop; }
+
+      public delegate bool GetHasLoop(Item item);
+      public static bool getHasSubclassOfLoop(Item item) { return item.hasSubclassOfLoop_; }
+      public static bool getHasPartOfLoop(Item item) { return item.hasPartOfLoop_; }
     }
 
     /// <summary>
@@ -115,7 +129,7 @@ namespace Nuvl
           result = new Item[0];
         else {
           var resultSet = new HashSet<Item>();
-          addAllSubclassOf(resultSet, item);
+          addAllTransitivePropertyValues(resultSet, item, Item.getSubclassOf, Item.getHasSubclassOfLoop);
 
           // Remove direct subclass of.
           foreach (var valueId in item.subclassOf_) {
@@ -133,20 +147,6 @@ namespace Nuvl
       return result;
     }
 
-    private void addAllSubclassOf(HashSet<Item> allSubclassOf, Item item)
-    {
-      if (item.subclassOf_ == null)
-        return;
-      foreach (var valueId in item.subclassOf_) {
-        Item value;
-        if (items_.TryGetValue(valueId, out value)) {
-          allSubclassOf.Add(value);
-          if (!value.hasSubclassOfLoop_)
-            addAllSubclassOf(allSubclassOf, value);
-        }
-      }
-    }
-
     /// <summary>
     /// Return a sorted array of all Item which are subclass of id (direct).
     /// </summary>
@@ -157,18 +157,7 @@ namespace Nuvl
     {
       Item[] result;
       if (!cachedHasDirectSubclass_.TryGetValue(id, out result)) {
-        Item item;
-        if (!items_.TryGetValue(id, out item) || item.hasSubclass_ == null)
-          result = new Item[0];
-        else {
-          result = new Item[item.hasSubclass_.Count];
-          var i = 0;
-          foreach (var value in item.hasSubclass_)
-            result[i++] = items_[value];
-
-          Array.Sort(result, new Item.StringComparer());
-        }
-
+        result = getPropertyValuesAsSortedItems(id, Item.getHasSubclass);
         cachedHasDirectSubclass_[id] = result;
       }
 
@@ -191,7 +180,7 @@ namespace Nuvl
           result = new Item[0];
         else {
           var resultSet = new HashSet<Item>();
-          addAllHasSubclass(resultSet, item);
+          addAllTransitivePropertyValues(resultSet, item, Item.getHasSubclass, Item.getHasSubclassOfLoop);
 
           // Remove direct has subclass.
           if (item.hasSubclass_ != null) {
@@ -206,19 +195,6 @@ namespace Nuvl
       }
 
       return result;
-    }
-
-    private void
-    addAllHasSubclass(HashSet<Item> allHasSubclass, Item item)
-    {
-      if (item.hasSubclass_ != null) {
-        foreach (var subclassId in item.hasSubclass_) {
-          var subclass = items_[subclassId];
-          allHasSubclass.Add(subclass);
-          if (!subclass.hasSubclassOfLoop_)
-            addAllHasSubclass(allHasSubclass, subclass);
-        }
-      }
     }
 
     /// <summary>
@@ -242,7 +218,7 @@ namespace Nuvl
           foreach (var valueId in item.instanceOf_) {
             Item value;
             if (items_.TryGetValue(valueId, out value))
-              addAllSubclassOf(resultSet, value);
+              addAllTransitivePropertyValues(resultSet, value, Item.getSubclassOf, Item.getHasSubclassOfLoop);
           }
 
           // Remove the direct classes from instance of.
@@ -271,18 +247,7 @@ namespace Nuvl
     {
       Item[] result;
       if (!cachedHasDirectInstance_.TryGetValue(id, out result)) {
-        Item item;
-        if (!items_.TryGetValue(id, out item) || item.hasInstance_ == null)
-          result = new Item[0];
-        else {
-          result = new Item[item.hasInstance_.Count];
-          var i = 0;
-          foreach (var value in item.hasInstance_)
-            result[i++] = items_[value];
-
-          Array.Sort(result, new Item.StringComparer());
-        }
-
+        result = getPropertyValuesAsSortedItems(id, Item.getHasInstance);
         cachedHasDirectInstance_[id] = result;
       }
 
@@ -299,18 +264,7 @@ namespace Nuvl
     {
       Item[] result;
       if (!cachedHasDirectPart_.TryGetValue(id, out result)) {
-        Item item;
-        if (!items_.TryGetValue(id, out item) || item.hasPart_ == null)
-          result = new Item[0];
-        else {
-          result = new Item[item.hasPart_.Count];
-          var i = 0;
-          foreach (var value in item.hasPart_)
-            result[i++] = items_[value];
-
-          Array.Sort(result, new Item.StringComparer());
-        }
-
+        result = getPropertyValuesAsSortedItems(id, Item.getHasPart);
         cachedHasDirectPart_[id] = result;
       }
 
@@ -686,6 +640,43 @@ namespace Nuvl
         return "";
 
       return line.Substring(iEnLabelStart, iEndQuote - iEnLabelStart);
+    }
+
+    private void addAllTransitivePropertyValues
+      (HashSet<Item> allPropertyValues, Item item, Item.GetPropertyValues getPropertyValues, Item.GetHasLoop getHasLoop)
+    {
+      var propertyValues = getPropertyValues(item);
+      if (propertyValues != null) {
+        foreach (var valueId in propertyValues) {
+          Item value;
+          if (items_.TryGetValue(valueId, out value)) {
+            allPropertyValues.Add(value);
+            if (!getHasLoop(value))
+              addAllTransitivePropertyValues(allPropertyValues, value, getPropertyValues, getHasLoop);
+          }
+        }
+      }
+    }
+
+    private Item[]
+    getPropertyValuesAsSortedItems(int id, Item.GetPropertyValues getPropertyValues)
+    {
+      Item item;
+      if (!items_.TryGetValue(id, out item))
+        return new Item[0];
+
+      var propertyValues = getPropertyValues(item);
+      if (propertyValues == null)
+        return new Item[0];
+
+      var result = new Item[propertyValues.Count];
+      var i = 0;
+      foreach (var value in propertyValues)
+        result[i++] = items_[value];
+
+      Array.Sort(result, new Item.StringComparer());
+
+      return result;
     }
 
     public List<string> messages_ = new List<string>();
