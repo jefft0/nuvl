@@ -201,6 +201,42 @@ namespace Nuvl
     }
 
     /// <summary>
+    /// Return a sorted array of all values for part of recursively,
+    /// minus the items that are direct values of part of.
+    /// </summary>
+    /// <param name="id">The Item id.</param>
+    /// <returns>The array of Item, sorted byte ToString().</returns>
+    public Item[]
+    indirectPartOf(int id)
+    {
+      Item[] result;
+      if (!cachedIndirectPartOf_.TryGetValue(id, out result)) {
+        result = getIndirectPropertyValuesAsSortedItems(id, Item.getPartOf, Item.getHasPartOfLoop);
+        cachedIndirectPartOf_[id] = result;
+      }
+
+      return result;
+    }
+
+    /// <summary>
+    /// Return a sorted array of all items which are part of id recursively,
+    /// minus the items that are direct part of id.
+    /// </summary>
+    /// <param name="id">The Item id.</param>
+    /// <returns>The array of Item, sorted byte ToString().</returns>
+    public Item[]
+    hasIndirectPart(int id)
+    {
+      Item[] result;
+      if (!cachedHasIndirectPart_.TryGetValue(id, out result)) {
+        result = getIndirectPropertyValuesAsSortedItems(id, Item.getHasPart, Item.getHasPartOfLoop);
+        cachedHasIndirectPart_[id] = result;
+      }
+
+      return result;
+    }
+
+    /// <summary>
     /// Return a sorted array of all values for instance of plus their
     /// subclass of recursively, minus the items that are direct values of instance of.
     /// </summary>
@@ -685,6 +721,8 @@ namespace Nuvl
     private Dictionary<int, Item[]> cachedIndirectInstanceOf_ = new Dictionary<int, Item[]>();
     private Dictionary<int, Item[]> cachedHasDirectInstance_ = new Dictionary<int, Item[]>();
 
+    private Dictionary<int, Item[]> cachedIndirectPartOf_ = new Dictionary<int, Item[]>();
     private Dictionary<int, Item[]> cachedHasDirectPart_ = new Dictionary<int, Item[]>();
+    private Dictionary<int, Item[]> cachedHasIndirectPart_ = new Dictionary<int, Item[]>();
   }
 }
