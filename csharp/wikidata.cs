@@ -114,34 +114,17 @@ namespace Nuvl
     }
 
     /// <summary>
-    /// Return a sorted array of all values for subclass of recursively,
-    /// minus the items that are direct values of subclass of.
+    /// Return a sorted array of all Item which are instance of id (direct).
     /// </summary>
     /// <param name="id">The Item id.</param>
     /// <returns>The array of Item, sorted byte ToString().</returns>
     public Item[]
-    indirectSubclassOf(int id)
+    hasDirectInstance(int id)
     {
       Item[] result;
-      if (!cachedIndirectSubclassOf_.TryGetValue(id, out result)) {
-        Item item;
-        if (!items_.TryGetValue(id, out item) || item.subclassOf_ == null)
-          result = new Item[0];
-        else {
-          var resultSet = new HashSet<Item>();
-          addAllTransitivePropertyValues(resultSet, item, Item.getSubclassOf, Item.getHasSubclassOfLoop);
-
-          // Remove direct subclass of.
-          foreach (var valueId in item.subclassOf_) {
-            Item value;
-            if (items_.TryGetValue(valueId, out value))
-              resultSet.Remove(value);
-          }
-
-          result = setToArray(resultSet);
-          Array.Sort(result, new Item.StringComparer());
-          cachedIndirectSubclassOf_[id] = result;
-        }
+      if (!cachedHasDirectInstance_.TryGetValue(id, out result)) {
+        result = getPropertyValuesAsSortedItems(id, Item.getHasInstance);
+        cachedHasDirectInstance_[id] = result;
       }
 
       return result;
@@ -165,6 +148,41 @@ namespace Nuvl
     }
 
     /// <summary>
+    /// Return a sorted array of all Item which are part of id (direct).
+    /// </summary>
+    /// <param name="id">The Item id.</param>
+    /// <returns>The array of Item, sorted byte ToString().</returns>
+    public Item[]
+    hasDirectPart(int id)
+    {
+      Item[] result;
+      if (!cachedHasDirectPart_.TryGetValue(id, out result)) {
+        result = getPropertyValuesAsSortedItems(id, Item.getHasPart);
+        cachedHasDirectPart_[id] = result;
+      }
+
+      return result;
+    }
+
+    /// <summary>
+    /// Return a sorted array of all values for subclass of recursively,
+    /// minus the items that are direct values of subclass of.
+    /// </summary>
+    /// <param name="id">The Item id.</param>
+    /// <returns>The array of Item, sorted byte ToString().</returns>
+    public Item[]
+    indirectSubclassOf(int id)
+    {
+      Item[] result;
+      if (!cachedIndirectSubclassOf_.TryGetValue(id, out result)) {
+        result = getIndirectPropertyValuesAsSortedItems(id, Item.getSubclassOf, Item.getHasSubclassOfLoop);
+        cachedIndirectSubclassOf_[id] = result;
+      }
+
+      return result;
+    }
+
+    /// <summary>
     /// Return a sorted array of all items which are subclass of id recursively,
     /// minus the items that are direct subclass of id.
     /// </summary>
@@ -175,22 +193,7 @@ namespace Nuvl
     {
       Item[] result;
       if (!cachedHasIndirectSubclass_.TryGetValue(id, out result)) {
-        Item item;
-        if (!items_.TryGetValue(id, out item))
-          result = new Item[0];
-        else {
-          var resultSet = new HashSet<Item>();
-          addAllTransitivePropertyValues(resultSet, item, Item.getHasSubclass, Item.getHasSubclassOfLoop);
-
-          // Remove direct has subclass.
-          if (item.hasSubclass_ != null) {
-            foreach (var subclassId in item.hasSubclass_)
-              resultSet.Remove(items_[subclassId]);
-          }
-
-          result = setToArray(resultSet);
-          Array.Sort(result, new Item.StringComparer());
-        }
+        result = getIndirectPropertyValuesAsSortedItems(id, Item.getHasSubclass, Item.getHasSubclassOfLoop);
         cachedHasIndirectSubclass_[id] = result;
       }
 
@@ -232,40 +235,6 @@ namespace Nuvl
           Array.Sort(result, new Item.StringComparer());
           cachedIndirectInstanceOf_[id] = result;
         }
-      }
-
-      return result;
-    }
-
-    /// <summary>
-    /// Return a sorted array of all Item which are instance of id (direct).
-    /// </summary>
-    /// <param name="id">The Item id.</param>
-    /// <returns>The array of Item, sorted byte ToString().</returns>
-    public Item[]
-    hasDirectInstance(int id)
-    {
-      Item[] result;
-      if (!cachedHasDirectInstance_.TryGetValue(id, out result)) {
-        result = getPropertyValuesAsSortedItems(id, Item.getHasInstance);
-        cachedHasDirectInstance_[id] = result;
-      }
-
-      return result;
-    }
-
-    /// <summary>
-    /// Return a sorted array of all Item which are part of id (direct).
-    /// </summary>
-    /// <param name="id">The Item id.</param>
-    /// <returns>The array of Item, sorted byte ToString().</returns>
-    public Item[]
-    hasDirectPart(int id)
-    {
-      Item[] result;
-      if (!cachedHasDirectPart_.TryGetValue(id, out result)) {
-        result = getPropertyValuesAsSortedItems(id, Item.getHasPart);
-        cachedHasDirectPart_[id] = result;
       }
 
       return result;
@@ -674,6 +643,32 @@ namespace Nuvl
       foreach (var value in propertyValues)
         result[i++] = items_[value];
 
+      Array.Sort(result, new Item.StringComparer());
+
+      return result;
+    }
+
+    private Item[] 
+    getIndirectPropertyValuesAsSortedItems(int id, Item.GetPropertyValues getPropertyValues, Item.GetHasLoop getHasLoop)
+    {
+      Item item;
+      if (!items_.TryGetValue(id, out item))
+        return new Item[0];
+
+      var resultSet = new HashSet<Item>();
+      addAllTransitivePropertyValues(resultSet, item, getPropertyValues, getHasLoop);
+
+      // Remove direct propertyValues.
+      var directPropertyValues = getPropertyValues(item);
+      if (directPropertyValues != null) {
+        foreach (var valueId in directPropertyValues) {
+          Item value;
+          if (items_.TryGetValue(valueId, out value))
+            resultSet.Remove(value);
+        }
+      }
+
+      var result = setToArray(resultSet);
       Array.Sort(result, new Item.StringComparer());
 
       return result;
