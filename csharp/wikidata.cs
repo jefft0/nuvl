@@ -18,6 +18,7 @@ namespace Nuvl
       public HashSet<int> hasPart_ = null;
       public HashSet<int> debugRootClasses_ = null;
       public bool hasSubclassOfLoop_ = false;
+      public bool hasPartOfLoop_ = false;
       private string label_;
       private bool labelHasId_ = false;
 
@@ -241,7 +242,7 @@ namespace Nuvl
           foreach (var valueId in item.instanceOf_) {
             Item value;
             if (items_.TryGetValue(valueId, out value))
-              addAllHasSubclass(resultSet, value);
+              addAllSubclassOf(resultSet, value);
           }
 
           // Remove the direct classes from instance of.
@@ -595,12 +596,9 @@ namespace Nuvl
       var item = new Item(id, enLabel);
       items_[id] = item;
 
-      item.instanceOf_ = setToArray(getPropertyValues(item, "instance of", line,
-         "\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P31\",\"datatype\":\"wikibase-item\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":"));
-      item.subclassOf_ = setToArray(getPropertyValues(item, "subclass of", line,
-         "\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P279\",\"datatype\":\"wikibase-item\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":"));
-      item.partOf_ = setToArray(getPropertyValues(item, "subclass of", line,
-         "\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P361\",\"datatype\":\"wikibase-item\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":"));
+      item.instanceOf_ = setToArray(getPropertyValues(item, "instance of", line, 31));
+      item.subclassOf_ = setToArray(getPropertyValues(item, "subclass of", line, 279));
+      item.partOf_ = setToArray(getPropertyValues(item, "subclass of", line, 361));
     }
 
     private static T[] setToArray<T>(HashSet<T> set)
@@ -627,8 +625,11 @@ namespace Nuvl
     }
 
     private HashSet<int>
-    getPropertyValues(Item item, string propertyName, string line, string propertyPrefix)
+    getPropertyValues(Item item, string propertyName, string line, int propertyId)
     {
+      var propertyPrefix =
+        "\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P" + propertyId + 
+        "\",\"datatype\":\"wikibase-item\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":";
       var valueSet = new HashSet<int>();
       var iProperty = 0;
       while (true) {
