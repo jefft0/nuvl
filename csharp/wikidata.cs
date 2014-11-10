@@ -550,8 +550,6 @@ namespace Nuvl
         return;
 
       var enLabel = getEnLabel(line);
-      if (items_.ContainsKey(id))
-        messages_.Add("Already have item id " + items_[id] + ". Got \"" + enLabel + "\"");
       var item = new Item(id, enLabel);
       items_[id] = item;
 
