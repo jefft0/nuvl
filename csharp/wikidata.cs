@@ -555,7 +555,7 @@ namespace Nuvl
 
       item.instanceOf_ = setToArray(getPropertyValues(item, "instance of", line, 31));
       item.subclassOf_ = setToArray(getPropertyValues(item, "subclass of", line, 279));
-      item.partOf_ = setToArray(getPropertyValues(item, "subclass of", line, 361));
+      item.partOf_ = setToArray(getPropertyValues(item, "part of", line, 361));
     }
 
     private static T[] setToArray<T>(HashSet<T> set)
