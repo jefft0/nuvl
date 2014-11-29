@@ -97,11 +97,15 @@ namespace Nuvl
       }
 
       public delegate ICollection<int> GetPropertyValues(Item item);
+      public delegate void SetPropertyValues(Item item, int[] values);
       public static ICollection<int> getInstanceOf(Item item) { return item.instanceOf_; }
+      public static void setInstanceOf(Item item, int[] values) { item.instanceOf_ = values; }
       public static ICollection<int> getHasInstance(Item item) { return item.hasInstance_; }
       public static ICollection<int> getSubclassOf(Item item) { return item.subclassOf_; }
+      public static void setSubclassOf(Item item, int[] values) { item.subclassOf_ = values; }
       public static ICollection<int> getHasSubclass(Item item) { return item.hasSubclass_; }
       public static ICollection<int> getPartOf(Item item) { return item.partOf_; }
+      public static void setPartOf(Item item, int[] values) { item.partOf_ = values; }
       public static ICollection<int> getHasPart(Item item) { return item.hasPart_; }
 
       public delegate void SetHasLoop(Item item, bool hasLoop);
@@ -337,6 +341,7 @@ namespace Nuvl
         System.Console.Out.WriteLine(message);
       System.Console.Out.WriteLine("");
 
+      System.Console.Out.Write("Writing dump files ...");
       using (var file = new StreamWriter(@"c:\temp\itemEnLabels.tsv")) {
         foreach (var entry in items_)
           file.WriteLine(entry.Key + "\t" + entry.Value.getEnLabel());
@@ -347,42 +352,28 @@ namespace Nuvl
           file.WriteLine(entry.Key + "\t" + entry.Value);
       }
 
-      using (var file = new StreamWriter(@"c:\temp\instanceOf.tsv")) {
-        foreach (var entry in items_) {
-          if (entry.Value.instanceOf_ != null) {
-            file.Write(entry.Key);
-            foreach (var value in entry.Value.instanceOf_)
-              file.Write("\t" + value);
-            file.WriteLine("");
-          }
-        }
-      }
-
-      using (var file = new StreamWriter(@"c:\temp\subclassOf.tsv")) {
-        foreach (var entry in items_) {
-          if (entry.Value.subclassOf_ != null) {
-            file.Write(entry.Key);
-            foreach (var value in entry.Value.subclassOf_)
-              file.Write("\t" + value);
-            file.WriteLine("");
-          }
-        }
-      }
-
-      using (var file = new StreamWriter(@"c:\temp\partOf.tsv")) {
-        foreach (var entry in items_) {
-          if (entry.Value.partOf_ != null) {
-            file.Write(entry.Key);
-            foreach (var value in entry.Value.partOf_)
-              file.Write("\t" + value);
-            file.WriteLine("");
-          }
-        }
-      }
+      dumpProperty(Item.getInstanceOf, @"c:\temp\instanceOf.tsv");
+      dumpProperty(Item.getSubclassOf, @"c:\temp\subclassOf.tsv");
+      dumpProperty(Item.getPartOf, @"c:\temp\partOf.tsv");
+      System.Console.Out.WriteLine(" done.");
 
       System.Console.Out.Write("Finding instances, subclasses and parts ...");
       setHasInstanceHasSubclassAndHasPart();
       System.Console.Out.WriteLine(" done.");
+    }
+
+    private void dumpProperty(Item.GetPropertyValues getPropertyValues, string filePath)
+    {
+      using (var file = new StreamWriter(filePath)) {
+        foreach (var entry in items_) {
+          if (getPropertyValues(entry.Value) != null) {
+            file.Write(entry.Key);
+            foreach (var value in getPropertyValues(entry.Value))
+              file.Write("\t" + value);
+            file.WriteLine("");
+          }
+        }
+      }
     }
 
     public void
@@ -396,7 +387,7 @@ namespace Nuvl
         while ((line = file.ReadLine()) != null) {
           ++nLines;
           if (nLines % 100000 == 0)
-            System.Console.Out.Write("\rnItemEnLabelsLines " + nLines);
+            System.Console.Out.Write("\rN itemEnLabels lines " + nLines);
 
           var splitLine = line.Split(new char[] { '\t' });
           var id = Int32.Parse(splitLine[0]);
@@ -412,7 +403,7 @@ namespace Nuvl
         while ((line = file.ReadLine()) != null) {
           ++nLines;
           if (nLines % 100000 == 0)
-            System.Console.Out.Write("\rnPropertyLabelsLines " + nLines);
+            System.Console.Out.Write("\rN propertyInLabels lines " + nLines);
 
           var splitLine = line.Split(new char[] { '\t' });
           var id = Int32.Parse(splitLine[0]);
@@ -421,74 +412,41 @@ namespace Nuvl
         System.Console.Out.WriteLine("");
       }
 
-      using (var file = new StreamReader(@"c:\temp\instanceOf.tsv")) {
-        var valueSet = new HashSet<int>();
-        var nLines = 0;
-        string line;
-        while ((line = file.ReadLine()) != null) {
-          ++nLines;
-          if (nLines % 100000 == 0)
-            System.Console.Out.Write("\rnInstanceOfLines " + nLines);
-
-          var splitLine = line.Split(new char[] { '\t' });
-          var item = items_[Int32.Parse(splitLine[0])];
-
-          valueSet.Clear();
-          for (int i = 1; i < splitLine.Length; ++i)
-            valueSet.Add(Int32.Parse(splitLine[i]));
-          item.instanceOf_ = new int[valueSet.Count];
-          valueSet.CopyTo(item.instanceOf_);
-        }
-        System.Console.Out.WriteLine("");
-      }
-
-      using (var file = new StreamReader(@"c:\temp\subclassOf.tsv")) {
-        var valueSet = new HashSet<int>();
-        var nLines = 0;
-        string line;
-        while ((line = file.ReadLine()) != null) {
-          ++nLines;
-          if (nLines % 100000 == 0)
-            System.Console.Out.Write("\rnsubclassOfLines " + nLines);
-
-          var splitLine = line.Split(new char[] { '\t' });
-          var item = items_[Int32.Parse(splitLine[0])];
-
-          valueSet.Clear();
-          for (int i = 1; i < splitLine.Length; ++i)
-            valueSet.Add(Int32.Parse(splitLine[i]));
-          item.subclassOf_ = new int[valueSet.Count];
-          valueSet.CopyTo(item.subclassOf_);
-        }
-        System.Console.Out.WriteLine("");
-      }
-
-      using (var file = new StreamReader(@"c:\temp\partOf.tsv")) {
-        var valueSet = new HashSet<int>();
-        var nLines = 0;
-        string line;
-        while ((line = file.ReadLine()) != null) {
-          ++nLines;
-          if (nLines % 100000 == 0)
-            System.Console.Out.Write("\rnpartOfLines " + nLines);
-
-          var splitLine = line.Split(new char[] { '\t' });
-          var item = items_[Int32.Parse(splitLine[0])];
-
-          valueSet.Clear();
-          for (int i = 1; i < splitLine.Length; ++i)
-            valueSet.Add(Int32.Parse(splitLine[i]));
-          item.partOf_ = new int[valueSet.Count];
-          valueSet.CopyTo(item.partOf_);
-        }
-        System.Console.Out.WriteLine("");
-      }
+      loadPropertyFromDump(@"c:\temp\instanceOf.tsv", Item.setInstanceOf, "instance of");
+      loadPropertyFromDump(@"c:\temp\subclassOf.tsv", Item.setSubclassOf, "subclass of");
+      loadPropertyFromDump(@"c:\temp\partOf.tsv", Item.setPartOf, "part of");
 
       System.Console.Out.Write("Finding instances, subclasses and parts ...");
       setHasInstanceHasSubclassAndHasPart();
       System.Console.Out.WriteLine(" done.");
 
       System.Console.Out.WriteLine("Load elapsed " + (DateTime.Now - startTime));
+    }
+
+    private void loadPropertyFromDump
+      (string filePath, Item.SetPropertyValues setPropertyValues, string propertyLabel)
+    {
+      using (var file = new StreamReader(filePath)) {
+        var valueSet = new HashSet<int>();
+        var nLines = 0;
+        string line;
+        while ((line = file.ReadLine()) != null) {
+          ++nLines;
+          if (nLines % 100000 == 0)
+            System.Console.Out.Write("\rN " + propertyLabel + " lines " + nLines);
+
+          var splitLine = line.Split(new char[] { '\t' });
+          var item = items_[Int32.Parse(splitLine[0])];
+
+          valueSet.Clear();
+          for (int i = 1; i < splitLine.Length; ++i)
+            valueSet.Add(Int32.Parse(splitLine[i]));
+          var values = new int[valueSet.Count];
+          valueSet.CopyTo(values);
+          setPropertyValues(item, values);
+        }
+        System.Console.Out.WriteLine("");
+      }
     }
 
     private void setHasInstanceHasSubclassAndHasPart()
