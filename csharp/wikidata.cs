@@ -484,7 +484,7 @@ namespace Nuvl
       // Assume one item or property per line.
 
       // Skip blank lines and the open/close of the outer list.
-      if (line.Length == 0 || line[0] == '[' || line[0] == ']')
+      if (line.Length == 0 || line[0] == '[' || line[0] == ']' || line[0] == ',')
         return;
 
       var itemPrefix = "{\"id\":\"Q";
@@ -496,7 +496,7 @@ namespace Nuvl
           processProperty(line, propertyPrefix.Length);
         else
           throw new Exception
-          ("Not an item or property: " + line.Substring(25));
+          ("Not an item or property: " + line.Substring(0, Math.Min(25, line.Length)));
       }
     }
 
@@ -507,6 +507,8 @@ namespace Nuvl
       if (id < 0)
         return;
 
+      if (items_.ContainsKey(id))
+        Console.Out.WriteLine("\r>>>>>> Already have item " + items_[id]);
       var enLabel = getEnLabel(line);
       var item = new Item(id, enLabel);
       items_[id] = item;
