@@ -1,0 +1,5 @@
+RewriteEngine  on
+# Look up the hash in sha-256-map.txt. This works because the virtualhost declares RewriteMap:
+# RewriteMap sha-256-map txt:/<path to root>/.well-known/ni/sha-256/sha-256-map.txt
+# In virtual host, also need: <Directory /<path to root>/.well-known/ni/sha-256> AllowOverride all </Directory>
+RewriteRule ^([^\.]+)$ ${sha-256-map:$1|/unrecognized-hash} [PT]

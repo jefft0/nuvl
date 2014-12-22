@@ -1,0 +1,2 @@
+component {0a6367e0-166d-11e3-8ffd-0800200c9a66} components/ni-protocol-service.js
+contract @mozilla.org/network/protocol;1?name=ni {0a6367e0-166d-11e3-8ffd-0800200c9a66}

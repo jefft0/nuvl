@@ -1,0 +1,13 @@
+The niProtocol Firefox extension enables Firefox to access an ni: link using a .well-known URL
+as described in RFC 6920 [http://tools.ietf.org/html/rfc6920].
+
+The extension gets the <authority> (domain name) from the parent page URL and converts 
+ni:///sha-256;<hash> to
+http://<authority>/.well-known/ni/sha-256/<hash>
+
+To try it in Firefox, download
+http://sourceforge.net/p/niprotocol/code/ci/master/tree/firefox/ni-protocol.xpi?format=raw
+In Firefox, open Tools > Add-ons. In the "gear" or "wrench" menu, click Install Add-on From File 
+and open niProtocol.xpi. Restart Firefox.
+
+More information and demos are at http://nuvl.org/ni
