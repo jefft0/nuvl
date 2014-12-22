@@ -6,7 +6,7 @@ var server = http.createServer(function(request, response) {
     return;
 
   // Match the .well-known URL. Ignore an ending query or hashref.
-  var re = /^\/\.well-known\/ni\/sha-1\/([\w]{27,27})\s*((\?|#).*)?$/ ;
+  var re = /^\/\.well-known\/ni\/sha-1\/([\w\-_]{27,27})\s*((\?|#).*)?$/ ;
   var match = request.url.match(re);
 
   if (!match) {
@@ -21,7 +21,8 @@ var server = http.createServer(function(request, response) {
   }
 
   var hashAlgorithm = "sha1";
-  var hexHash = new Buffer(match[1], "base64").toString("hex");
+  var base64 = match[1].replace(/-/g, "+").replace(/_/g, "/");
+  var hexHash = new Buffer(base64, "base64").toString("hex");
 
   var firstByte = parseInt(hexHash.substr(0, 2), 16);
   var driveLetter;
@@ -38,8 +39,7 @@ var server = http.createServer(function(request, response) {
       // TODO: Return an error page.
         return;
 
-    //response.writeHead(200, {"Content-Type": "application/octet-stream"});
-    response.writeHead(200, {"Content-Type": "text/plain"}); // Debug: For demo.
+    response.writeHead(200, {"Content-Type": "application/octet-stream"});
     response.write(data);
     response.end();
   });
