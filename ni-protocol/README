@@ -6,7 +6,7 @@ ni:///sha-256;<hash> to
 http://<authority>/.well-known/ni/sha-256/<hash>
 
 To try it in Firefox, download
-http://sourceforge.net/p/niprotocol/code/ci/master/tree/firefox/ni-protocol.xpi?format=raw
+https://github.com/jefft0/nuvl/raw/master/ni-protocol/firefox/ni-protocol.xpi
 In Firefox, open Tools > Add-ons. In the "gear" or "wrench" menu, click Install Add-on From File 
 and open niProtocol.xpi. Restart Firefox.
 
