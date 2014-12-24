@@ -77,27 +77,67 @@ NiProtocol.prototype = {
         return httpHandler.newChannel(wellKnownUri);
 
       // Use a ContentChannel so that we can control the contentType and fetching.
-      var requestContent = function(contentListener) {
-        var httpListener = {
-          onStartRequest: function(aRequest, aContext) {
-            contentListener.onStart(contentType, contentCharset, null);
-          },
-          onDataAvailable: function(aRequest, aContext, aInputStream, aOffset, aCount) {
-            /*
-            var content = NetUtil.readInputStreamToString(aInputStream, aCount);
-            contentListener.onReceivedContent(content);
-            */
-            contentListener.onReceivedContentStream(aInputStream, aOffset, aCount);
-          },
-          onStopRequest: function(aRequest, aContext, aStatusCode) {
-            contentListener.onStop();
-          }
+      if (contentType == "application/camlistore") {
+        var requestContent = function(contentListener) {
+          var jsonPipe = Cc["@mozilla.org/pipe;1"].createInstance(Ci.nsIPipe);
+          jsonPipe.init(true, true, 0, 0, null);
+          var jsonLength = 0;
+
+          var httpListener = {
+            onStartRequest: function(aRequest, aContext) {
+            },
+            onDataAvailable: function(aRequest, aContext, aInputStream, aOffset, aCount) {
+              // TODO: Can pipe directly to the jsonPipe?
+              var content = NetUtil.readInputStreamToString(aInputStream, aCount);
+              jsonPipe.outputStream.write(content, content.length);
+              jsonLength += content.length;
+            },
+            onStopRequest: function(aRequest, aContext, aStatusCode) {
+              // TODO: Can create nativeJSON once?
+              var nativeJSON = Components.classes["@mozilla.org/dom/json;1"]
+                 .createInstance(Components.interfaces.nsIJSON);
+              jsonPipe.outputStream.close();
+              camliObject = nativeJSON.decodeFromStream(jsonPipe.inputStream, jsonLength);
+
+              if (camliObject.camliType == "file") {
+                contentListener.onStart("text/plain", "utf-8", null);
+                contentListener.onReceivedContent("camliObject fileName " + camliObject.fileName);
+                contentListener.onStop();
+              }
+              else {
+                contentListener.onStart("text/plain", "utf-8", null);
+                contentListener.onReceivedContent("Unknown camliObject type " + camliObject.camliType);
+                contentListener.onStop();
+              }
+            }
+          };
+
+          httpHandler.newChannel(wellKnownUri).asyncOpen(httpListener, null);
         };
 
-        httpHandler.newChannel(wellKnownUri).asyncOpen(httpListener, null);
-      };
+        return new ContentChannel(aURI, requestContent);
+      }
+      else {
+        var requestContent = function(contentListener) {
+          var httpListener = {
+            onStartRequest: function(aRequest, aContext) {
+              contentListener.onStart(contentType, contentCharset, null);
+            },
+            onDataAvailable: function(aRequest, aContext, aInputStream, aOffset, aCount) {
+              // TODO: Can pipe directly to the contentListener?
+              var content = NetUtil.readInputStreamToString(aInputStream, aCount);
+              contentListener.onReceivedContent(content);
+            },
+            onStopRequest: function(aRequest, aContext, aStatusCode) {
+              contentListener.onStop();
+            }
+          };
 
-      return new ContentChannel(aURI, requestContent);
+          httpHandler.newChannel(wellKnownUri).asyncOpen(httpListener, null);
+        };
+
+        return new ContentChannel(aURI, requestContent);
+      }
     } catch (ex) {
       dump("NiProtocol.newChannel exception: " + ex + "\n" + ex.stack);
     }
@@ -278,8 +318,6 @@ ContentChannel.prototype = {
  *   sets this.loadFlags.)
  * onReceivedContent(content)
  *   Call aListener.onDataAvailable.
- * onReceivedContentStream(inputStream, offset, count)
- *   Pass the inputStream to aListener.onDataAvailable.
  * onStop()
  *   Call aListener.onStopRequest.
  */
@@ -322,17 +360,6 @@ ContentChannel.prototype.asyncOpen = function(aListener, aContext)
         callingThread.dispatch({
           run: function() {
             aListener.onDataAvailable(thisContentChannel, aContext, pipe.inputStream, 0, content.length);
-          }
-        }, 0);
-      },
-
-      onReceivedContentStream: function(inputStream, offset, count) {
-        // nsIChannel requires us to call aListener on its calling thread.
-        // Assume calls to dispatch are eventually executed in order.
-        callingThread.dispatch({
-          run: function() {
-            aListener.onDataAvailable
-              (thisContentChannel, aContext, inputStream, offset, count);
           }
         }, 0);
       },
