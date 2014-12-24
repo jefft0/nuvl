@@ -83,8 +83,11 @@ NiProtocol.prototype = {
             contentListener.onStart(contentType, contentCharset, null);
           },
           onDataAvailable: function(aRequest, aContext, aInputStream, aOffset, aCount) {
+            /*
             var content = NetUtil.readInputStreamToString(aInputStream, aCount);
             contentListener.onReceivedContent(content);
+            */
+            contentListener.onReceivedContentStream(aInputStream, aOffset, aCount);
           },
           onStopRequest: function(aRequest, aContext, aStatusCode) {
             contentListener.onStop();
@@ -275,6 +278,8 @@ ContentChannel.prototype = {
  *   sets this.loadFlags.)
  * onReceivedContent(content)
  *   Call aListener.onDataAvailable.
+ * onReceivedContentStream(inputStream, offset, count)
+ *   Pass the inputStream to aListener.onDataAvailable.
  * onStop()
  *   Call aListener.onStopRequest.
  */
@@ -317,6 +322,17 @@ ContentChannel.prototype.asyncOpen = function(aListener, aContext)
         callingThread.dispatch({
           run: function() {
             aListener.onDataAvailable(thisContentChannel, aContext, pipe.inputStream, 0, content.length);
+          }
+        }, 0);
+      },
+
+      onReceivedContentStream: function(inputStream, offset, count) {
+        // nsIChannel requires us to call aListener on its calling thread.
+        // Assume calls to dispatch are eventually executed in order.
+        callingThread.dispatch({
+          run: function() {
+            aListener.onDataAvailable
+              (thisContentChannel, aContext, inputStream, offset, count);
           }
         }, 0);
       },
