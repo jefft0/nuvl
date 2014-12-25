@@ -78,55 +78,18 @@ NiProtocol.prototype = {
       // Use a ContentChannel so that we can control the contentType and fetching.
       if (contentType == "application/camlistore") {
         var requestContent = function(contentListener) {
-          var jsonPipe = Cc["@mozilla.org/pipe;1"].createInstance(Ci.nsIPipe);
-          jsonPipe.init(true, true, 0, 0, null);
-          var jsonLength = 0;
-
-          var httpListener = {
-            onStartRequest: function(aRequest, aContext) {},
-            onDataAvailable: function(aRequest, aContext, aInputStream, aOffset, aCount) {
-              // TODO: Can pipe directly to the jsonPipe?
-              var content = NetUtil.readInputStreamToString(aInputStream, aCount);
-              jsonPipe.outputStream.write(content, content.length);
-              jsonLength += content.length;
-            },
-            onStopRequest: function(aRequest, aContext, aStatusCode) {
-              // TODO: Can create nativeJSON once?
-              var nativeJSON = Components.classes["@mozilla.org/dom/json;1"]
-                 .createInstance(Components.interfaces.nsIJSON);
-              jsonPipe.outputStream.close();
-              camliObject = nativeJSON.decodeFromStream(jsonPipe.inputStream, jsonLength);
-
-              if (camliObject.camliType == "file") {
-                var contentTypeEtc = MimeTypes.getContentTypeAndCharset(camliObject.fileName);
-                contentListener.onStart(contentTypeEtc.contentType, contentTypeEtc.charset, null);
-
-                // TODO: Handle multiple blobRef and bytesRef.
-                var httpListener2 = {
-                  onStartRequest: function(aRequest, aContext) {},
-                  onDataAvailable: function(aRequest, aContext, aInputStream, aOffset, aCount) {
-                    // TODO: Can pipe directly to the contentListener?
-                    var content = NetUtil.readInputStreamToString(aInputStream, aCount);
-                    contentListener.onReceivedContent(content);
-                  },
-                  onStopRequest: function(aRequest, aContext, aStatusCode) {
-                    contentListener.onStop();
-                  }
-                };
-
-                var blobRef = camliObject.parts[0].blobRef;
-                var wellKnownUri2 = NiProtocol.newBlobRefWellKnownUri(blobRef, niParts.authority);
-                httpHandler.newChannel(wellKnownUri2).asyncOpen(httpListener2, null);
-              }
-              else {
-                contentListener.onStart("text/plain", "utf-8", null);
-                contentListener.onReceivedContent("Unknown camliType " + camliObject.camliType);
-                contentListener.onStop();
-              }
+          NiProtocol.fetchJson(wellKnownUri, function(json) {
+            if (json.camliType == "file") {
+              var contentTypeEtc = MimeTypes.getContentTypeAndCharset(json.fileName);
+              contentListener.onStart(contentTypeEtc.contentType, contentTypeEtc.charset, null);
+              new CamlistorePartsReader(json.parts, contentListener, niParts.authority);
             }
-          };
-
-          httpHandler.newChannel(wellKnownUri).asyncOpen(httpListener, null);
+            else {
+              contentListener.onStart("text/plain", "utf-8", null);
+              contentListener.onReceivedContent("Unknown camliType " + json.camliType);
+              contentListener.onStop();
+            }
+          });
         };
 
         return new ContentChannel(aURI, requestContent);
@@ -167,6 +130,95 @@ if (XPCOMUtils.generateNSGetFactory)
   var NSGetFactory = XPCOMUtils.generateNSGetFactory([NiProtocol]);
 else
   var NSGetModule = XPCOMUtils.generateNSGetModule([NiProtocol]);
+
+var CamlistorePartsReader = function CamlistorePartsReader(parts, contentListener, authority)
+{
+  this.parts = parts;
+  this.contentListener = contentListener;
+  this.authority = authority;
+
+  this.httpHandler = Cc["@mozilla.org/network/protocol;1?name=http"]
+    .getService(Ci.nsIHttpProtocolHandler);
+  this.nativeJSON = Components.classes["@mozilla.org/dom/json;1"]
+    .createInstance(Components.interfaces.nsIJSON);
+
+  this.iPart = 0;
+  this.fetchPart();
+};
+
+CamlistorePartsReader.prototype.onStartRequest = function(aRequest, aContext) {};
+
+CamlistorePartsReader.prototype.onDataAvailable = function
+  (aRequest, aContext, aInputStream, aOffset, aCount)
+{
+  // TODO: Can pipe directly to the contentListener?
+  var content = NetUtil.readInputStreamToString(aInputStream, aCount);
+  this.contentListener.onReceivedContent(content);
+};
+
+CamlistorePartsReader.prototype.onStopRequest = function
+  (aRequest, aContext, aStatusCode) 
+{
+  ++this.iPart;
+  this.fetchPart();
+};
+
+CamlistorePartsReader.prototype.fetchPart = function()
+{
+  if (this.iPart >= this.parts.length) {
+    // Finished.
+    this.contentListener.onStop();
+    return;
+  }
+
+  var blobRef = this.parts[this.iPart].blobRef;
+  if (blobRef != undefined)
+    this.httpHandler.newChannel
+      (NiProtocol.newBlobRefWellKnownUri(blobRef, this.authority))
+      .asyncOpen(this, null);
+  else {
+    var bytesRef = this.parts[this.iPart].bytesRef;
+    if (bytesRef != undefined) {
+      // Fetch the bytesRef JSON.
+    }
+  }
+};
+
+/**
+ * Read the uri using HTTP, convert to a JSON object and call callback(json).
+ *
+ * @param {ndsURI} uri The URI to fetch.
+ * @param {Function} callback This calls callback(json) where json is
+ *   a JavaScript object.
+ */
+NiProtocol.fetchJson = function(uri, callback)
+{
+  var jsonPipe = Cc["@mozilla.org/pipe;1"].createInstance(Ci.nsIPipe);
+  jsonPipe.init(true, true, 0, 0, null);
+  var jsonLength = 0;
+
+  var httpListener = {
+    onStartRequest: function(aRequest, aContext) {},
+    onDataAvailable: function(aRequest, aContext, aInputStream, aOffset, aCount) {
+      // TODO: Can pipe directly to the jsonPipe?
+      var content = NetUtil.readInputStreamToString(aInputStream, aCount);
+      jsonPipe.outputStream.write(content, content.length);
+      jsonLength += content.length;
+    },
+    onStopRequest: function(aRequest, aContext, aStatusCode) {
+      // TODO: Can create nativeJSON once?
+      var nativeJSON = Components.classes["@mozilla.org/dom/json;1"]
+        .createInstance(Components.interfaces.nsIJSON);
+      jsonPipe.outputStream.close();
+      callback(nativeJSON.decodeFromStream(jsonPipe.inputStream, jsonLength));
+    }
+  };
+
+  // TODO: Can create httpHandler once?
+  var httpHandler = Cc["@mozilla.org/network/protocol;1?name=http"]
+    .getService(Ci.nsIHttpProtocolHandler);
+  httpHandler.newChannel(uri).asyncOpen(httpListener, null);
+};
 
 /**
  * Return a new .well-known URI constructed from the given parts.
