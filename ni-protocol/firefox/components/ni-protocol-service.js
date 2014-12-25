@@ -82,7 +82,8 @@ NiProtocol.prototype = {
             if (json.camliType == "file") {
               var contentTypeEtc = MimeTypes.getContentTypeAndCharset(json.fileName);
               contentListener.onStart(contentTypeEtc.contentType, contentTypeEtc.charset, null);
-              new CamlistorePartsReader(json.parts, contentListener, niParts.authority);
+              new CamlistorePartsReader(null, json.parts, contentListener, niParts.authority)
+                .fetchNextPart();
             }
             else {
               contentListener.onStart("text/plain", "utf-8", null);
@@ -130,59 +131,6 @@ if (XPCOMUtils.generateNSGetFactory)
   var NSGetFactory = XPCOMUtils.generateNSGetFactory([NiProtocol]);
 else
   var NSGetModule = XPCOMUtils.generateNSGetModule([NiProtocol]);
-
-var CamlistorePartsReader = function CamlistorePartsReader(parts, contentListener, authority)
-{
-  this.parts = parts;
-  this.contentListener = contentListener;
-  this.authority = authority;
-
-  this.httpHandler = Cc["@mozilla.org/network/protocol;1?name=http"]
-    .getService(Ci.nsIHttpProtocolHandler);
-  this.nativeJSON = Components.classes["@mozilla.org/dom/json;1"]
-    .createInstance(Components.interfaces.nsIJSON);
-
-  this.iPart = 0;
-  this.fetchPart();
-};
-
-CamlistorePartsReader.prototype.onStartRequest = function(aRequest, aContext) {};
-
-CamlistorePartsReader.prototype.onDataAvailable = function
-  (aRequest, aContext, aInputStream, aOffset, aCount)
-{
-  // TODO: Can pipe directly to the contentListener?
-  var content = NetUtil.readInputStreamToString(aInputStream, aCount);
-  this.contentListener.onReceivedContent(content);
-};
-
-CamlistorePartsReader.prototype.onStopRequest = function
-  (aRequest, aContext, aStatusCode) 
-{
-  ++this.iPart;
-  this.fetchPart();
-};
-
-CamlistorePartsReader.prototype.fetchPart = function()
-{
-  if (this.iPart >= this.parts.length) {
-    // Finished.
-    this.contentListener.onStop();
-    return;
-  }
-
-  var blobRef = this.parts[this.iPart].blobRef;
-  if (blobRef != undefined)
-    this.httpHandler.newChannel
-      (NiProtocol.newBlobRefWellKnownUri(blobRef, this.authority))
-      .asyncOpen(this, null);
-  else {
-    var bytesRef = this.parts[this.iPart].bytesRef;
-    if (bytesRef != undefined) {
-      // Fetch the bytesRef JSON.
-    }
-  }
-};
 
 /**
  * Read the uri using HTTP, convert to a JSON object and call callback(json).
@@ -342,6 +290,85 @@ NiProtocol.newBlobRefWellKnownUri = function(blobRef, authority)
   }
   else
     return null;
+};
+
+var CamlistorePartsReader = function CamlistorePartsReader
+  (parent, parts, contentListener, authority)
+{
+  this.parent = parent;
+  this.parts = parts;
+  this.contentListener = contentListener;
+  this.authority = authority;
+
+  this.httpHandler = Cc["@mozilla.org/network/protocol;1?name=http"]
+    .getService(Ci.nsIHttpProtocolHandler);
+  this.nativeJSON = Components.classes["@mozilla.org/dom/json;1"]
+    .createInstance(Components.interfaces.nsIJSON);
+  this.iPart = -1;
+  dump("New CamlistorePartsReader, parts.length " + this.parts.length + "\n");
+};
+
+CamlistorePartsReader.prototype.onStartRequest = function(aRequest, aContext) {};
+
+CamlistorePartsReader.prototype.onDataAvailable = function
+  (aRequest, aContext, aInputStream, aOffset, aCount)
+{
+  // TODO: Can pipe directly to the contentListener?
+  var content = NetUtil.readInputStreamToString(aInputStream, aCount);
+  this.contentListener.onReceivedContent(content);
+};
+
+CamlistorePartsReader.prototype.onStopRequest = function
+  (aRequest, aContext, aStatusCode) 
+{
+  this.fetchNextPart();
+};
+
+CamlistorePartsReader.prototype.fetchNextPart = function()
+{
+  ++this.iPart;
+  dump("iPart " + this.iPart + "\n");
+  if (this.iPart >= this.parts.length) {
+    dump("Finished reading parts\n");
+    if (this.parent == null)
+      // No parent, so we are finished.
+      this.contentListener.onStop();
+    else {
+      // Return control to the parent.
+      dump("Return control to the parent.\n");
+      this.parent.fetchNextPart();
+    }
+
+    return;
+  }
+
+  var blobRef = this.parts[this.iPart].blobRef;
+  if (blobRef != undefined) {
+    dump("Reading blobRef " + blobRef + "\n");
+    this.httpHandler.newChannel
+      (NiProtocol.newBlobRefWellKnownUri(blobRef, this.authority))
+      .asyncOpen(this, null);
+  }
+  else {
+    var bytesRef = this.parts[this.iPart].bytesRef;
+    if (bytesRef != undefined) {
+      var thisReader = this;
+      dump("Fetching JSON bytesRef " + bytesRef + ", URI " + NiProtocol.newBlobRefWellKnownUri(bytesRef, this.authority).spec + "\n");
+      NiProtocol.fetchJson
+        (NiProtocol.newBlobRefWellKnownUri(bytesRef, this.authority),
+         function(json) {
+           if (json.camliType != "bytes")
+             return;
+
+           dump("Reading parts for bytesRef " + bytesRef + ", parts.length " + json.parts.length + "\n");
+           new CamlistorePartsReader
+             (thisReader, json.parts, thisReader.contentListener, thisReader.authority)
+             .fetchNextPart(); 
+         });
+    }
+    else
+      dump("No blobRef or bytesRef\n");
+  }
 };
 
 var base64KeyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
