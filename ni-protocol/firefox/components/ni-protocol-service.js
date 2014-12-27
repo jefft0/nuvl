@@ -76,17 +76,18 @@ NiProtocol.prototype = {
         return httpHandler.newChannel(wellKnownUri);
 
       // Use a ContentChannel so that we can control the contentType and fetching.
+      var requestContent = null;
       if (contentType == "application/camlistore") {
-        var requestContent = function(contentListener) {
+        requestContent = function(contentListener) {
           NiProtocol.fetchJson(wellKnownUri, function(json) {
             if (json.camliType == "file") {
               var contentTypeEtc = MimeTypes.getContentTypeAndCharset(json.fileName);
-              contentListener.onStart(contentTypeEtc.contentType, contentTypeEtc.charset, null);
+              contentListener.onStart(contentTypeEtc.contentType, contentTypeEtc.charset);
               new CamlistorePartsReader(null, json.parts, contentListener, niParts.authority)
                 .fetchNextPart();
             }
             else {
-              contentListener.onStart("text/plain", "utf-8", null);
+              contentListener.onStart("text/plain", "utf-8");
               contentListener.onReceivedContent("Unknown camliType " + json.camliType);
               contentListener.onStop();
             }
@@ -96,10 +97,11 @@ NiProtocol.prototype = {
         return new ContentChannel(aURI, requestContent);
       }
       else {
-        var requestContent = function(contentListener) {
+        // Just fetch the content with the given content type.
+        requestContent = function(contentListener) {
           var httpListener = {
             onStartRequest: function(aRequest, aContext) {
-              contentListener.onStart(contentType, contentCharset, null);
+              contentListener.onStart(contentType, contentCharset);
             },
             onDataAvailable: function(aRequest, aContext, aInputStream, aOffset, aCount) {
               // TODO: Can pipe directly to the contentListener?
@@ -305,7 +307,6 @@ var CamlistorePartsReader = function CamlistorePartsReader
   this.nativeJSON = Components.classes["@mozilla.org/dom/json;1"]
     .createInstance(Components.interfaces.nsIJSON);
   this.iPart = -1;
-  dump("New CamlistorePartsReader, parts.length " + this.parts.length + "\n");
 };
 
 CamlistorePartsReader.prototype.onStartRequest = function(aRequest, aContext) {};
@@ -327,24 +328,19 @@ CamlistorePartsReader.prototype.onStopRequest = function
 CamlistorePartsReader.prototype.fetchNextPart = function()
 {
   ++this.iPart;
-  dump("iPart " + this.iPart + "\n");
   if (this.iPart >= this.parts.length) {
-    dump("Finished reading parts\n");
     if (this.parent == null)
       // No parent, so we are finished.
       this.contentListener.onStop();
-    else {
+    else
       // Return control to the parent.
-      dump("Return control to the parent.\n");
       this.parent.fetchNextPart();
-    }
 
     return;
   }
 
   var blobRef = this.parts[this.iPart].blobRef;
   if (blobRef != undefined) {
-    dump("Reading blobRef " + blobRef + "\n");
     this.httpHandler.newChannel
       (NiProtocol.newBlobRefWellKnownUri(blobRef, this.authority))
       .asyncOpen(this, null);
@@ -353,21 +349,19 @@ CamlistorePartsReader.prototype.fetchNextPart = function()
     var bytesRef = this.parts[this.iPart].bytesRef;
     if (bytesRef != undefined) {
       var thisReader = this;
-      dump("Fetching JSON bytesRef " + bytesRef + ", URI " + NiProtocol.newBlobRefWellKnownUri(bytesRef, this.authority).spec + "\n");
       NiProtocol.fetchJson
         (NiProtocol.newBlobRefWellKnownUri(bytesRef, this.authority),
          function(json) {
            if (json.camliType != "bytes")
              return;
 
-           dump("Reading parts for bytesRef " + bytesRef + ", parts.length " + json.parts.length + "\n");
            new CamlistorePartsReader
              (thisReader, json.parts, thisReader.contentListener, thisReader.authority)
              .fetchNextPart(); 
          });
     }
     else
-      dump("No blobRef or bytesRef\n");
+      dump("CamlistorePartsReader: Did not find expected blobRef or bytesRef\n");
   }
 };
 
@@ -418,6 +412,8 @@ function hexToRawString(hex)
 }
 
 // TODO: Move this to another file.
+var PR_UINT32_MAX = 0xffffffff;
+
 /* Create an nsIChannel for returning content to the caller of asyncOpen.
  * For requestContent detail, see asyncOpen.
  */
@@ -428,10 +424,6 @@ function ContentChannel(uri, requestContent)
   this.done = false;
 
   this.name = uri.spec;
-    // Bit 18 "LOAD_REPLACE" means the window.location should use the URI set by onStart.
-    // loadFlags is updated by the caller of asyncOpen.
-    this.loadFlags = (1<<18);
-  this.loadGroup = null;
   this.status = 200;
 
   // We don't know these yet.
@@ -443,10 +435,6 @@ function ContentChannel(uri, requestContent)
   this.owner = null;
   this.notificationCallback = null;
   this.securityInfo = null;
-
-    // Save the mostRecentWindow from the moment of creating the channel.
-    var wm = Cc["@mozilla.org/appshell/window-mediator;1"].getService(Ci.nsIWindowMediator);
-    this.mostRecentWindow = wm.getMostRecentWindow("navigator:browser");
 }
 
 ContentChannel.prototype = {
@@ -487,11 +475,8 @@ ContentChannel.prototype = {
 
 /* Call requestContent(contentListener).  When the content is available, you should call
  *   contentListener funtions as follows:
- * onStart(contentType, contentCharset, uri)
- *   Set the contentType and contentCharset and call aListener.onStartRequest.  If uri
- *   is not null, update this.URI and if this.loadFlags LOAD_INITIAL_DOCUMENT_URI bit is set,
- *   then update the URL bar of the mostRecentWindow. (Note that the caller of asyncOpen
- *   sets this.loadFlags.)
+ * onStart(contentType, contentCharset)
+ *   Set the contentType and contentCharset and call aListener.onStartRequest.
  * onReceivedContent(content)
  *   Call aListener.onDataAvailable.
  * onStop()
@@ -506,9 +491,7 @@ ContentChannel.prototype.asyncOpen = function(aListener, aContext)
     var callingThread = threadManager.currentThread;
 
     var contentListener = {
-      onStart: function(contentType, contentCharset, uri) {
-        if (uri)
-          thisContentChannel.URI = uri;
+      onStart: function(contentType, contentCharset) {
         thisContentChannel.contentType = contentType;
         thisContentChannel.contentCharset = contentCharset;
 
@@ -516,18 +499,14 @@ ContentChannel.prototype.asyncOpen = function(aListener, aContext)
         callingThread.dispatch({
           run: function() {
             aListener.onStartRequest(thisContentChannel, aContext);
-            // Load flags bit 19 "LOAD_INITIAL_DOCUMENT_URI" means this channel is
-            //   for the main window with the URL bar.
-            if (uri && thisContentChannel.loadFlags & (1<<19))
-              // aListener.onStartRequest may set the URL bar but now we update it.
-              thisContentChannel.mostRecentWindow.gURLBar.value = thisContentChannel.URI.spec;
           }
         }, 0);
       },
 
       onReceivedContent: function(content) {
         var pipe = Cc["@mozilla.org/pipe;1"].createInstance(Ci.nsIPipe);
-        pipe.init(true, true, 0, 0, null);
+        // Use PR_UINT32_MAX because a content can be larger than 64K.
+        pipe.init(true, true, 0, PR_UINT32_MAX, null);
         pipe.outputStream.write(content, content.length);
         pipe.outputStream.close();
 
@@ -541,12 +520,11 @@ ContentChannel.prototype.asyncOpen = function(aListener, aContext)
       },
 
       onStop: function() {
-        thisContentChannel.done = true;
-
         // nsIChannel requires us to call aListener on its calling thread.
         callingThread.dispatch({
           run: function() {
             aListener.onStopRequest(thisContentChannel, aContext, thisContentChannel.status);
+            thisContentChannel.done = true;
           }
         }, 0);
       },
