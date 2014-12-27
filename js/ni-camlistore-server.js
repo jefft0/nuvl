@@ -5,6 +5,11 @@ var server = http.createServer(function(request, response) {
   if (request.method != "GET")
     return;
 
+  if (request.url == "/") {
+    sendIndexPage(response);
+    return;
+  }
+
   // Match the .well-known URL. Ignore an ending query or hashref.
   var re = /^\/\.well-known\/ni\/sha-1\/([\w\-_]{27,27})\s*((\?|#).*)?$/ ;
   var match = request.url.match(re);
@@ -45,5 +50,19 @@ var server = http.createServer(function(request, response) {
   });
 });
  
+function sendIndexPage(response)
+{
+  response.writeHead(200, {"Content-Type": "text/html"});
+  response.write("<!DOCTYPE \"html\">");
+  response.write("<html><head><title>data.thefirst.org</title></head><body>\n");
+  response.write("<h1>Welcome to data.thefirst.org</h1>\n");
+  response.write('You must use Firefox with the "ni" extension. To install it, download<br>\n');
+  response.write('<a href="https://github.com/jefft0/nuvl/raw/master/ni-protocol/firefox/ni-protocol.xpi">https://github.com/jefft0/nuvl/raw/master/ni-protocol/firefox/ni-protocol.xpi</a><br>\n');
+  response.write('In Firefox, open Tools &gt; Add-ons. In the "gear" or "wrench" menu, click Install Add-on From File and open ni-protocol.xpi. Restart Firefox.<br><br>\n');
+  response.write('See <a href="ni://data.thefirst.org/sha-1;zc8SkD6W6iy7bMfD59tmQ80rmsE?ct=application/camlistore">Ranis Party Visit videos</a><br>\n');
+  response.write("</body></html>");
+  response.end();
+}
+
 server.listen(80);
 console.log("Server is listening");
