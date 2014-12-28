@@ -6,7 +6,9 @@ var server = http.createServer(function(request, response) {
     return;
 
   if (request.url == "/") {
-    sendIndexPage(response);
+    // Send the index page.
+    response.writeHead(200, {"Content-Type": "text/html"});
+    fs.createReadStream("c:\\work\\data.thefirst.org.html", { bufferSize: 64 * 1024 }).pipe(response);
     return;
   }
 
@@ -39,30 +41,9 @@ var server = http.createServer(function(request, response) {
     hexHash.substr(0, 2) + "\\" + hexHash.substr(2, 2) + "\\" + 
     hashAlgorithm + "-" + hexHash + ".dat"; 
 
-  fs.readFile(blobPath, function (err, data) {
-    if (err) 
-      // TODO: Return an error page.
-        return;
-
-    response.writeHead(200, {"Content-Type": "application/octet-stream"});
-    response.write(data);
-    response.end();
-  });
+  response.writeHead(200, {"Content-Type": "application/octet-stream"});
+  fs.createReadStream(blobPath, { bufferSize: 64 * 1024 }).pipe(response);
 });
- 
-function sendIndexPage(response)
-{
-  response.writeHead(200, {"Content-Type": "text/html"});
-  response.write("<!DOCTYPE \"html\">");
-  response.write("<html><head><title>data.thefirst.org</title></head><body>\n");
-  response.write("<h1>Welcome to data.thefirst.org</h1>\n");
-  response.write('You must use Firefox with the "ni" extension. To install it, download<br>\n');
-  response.write('<a href="https://github.com/jefft0/nuvl/raw/master/ni-protocol/firefox/ni-protocol.xpi">https://github.com/jefft0/nuvl/raw/master/ni-protocol/firefox/ni-protocol.xpi</a><br>\n');
-  response.write('In Firefox, open Tools &gt; Add-ons. In the "gear" or "wrench" menu, click Install Add-on From File and open ni-protocol.xpi. Restart Firefox.<br><br>\n');
-  response.write('See <a href="ni://data.thefirst.org/sha-1;zc8SkD6W6iy7bMfD59tmQ80rmsE?ct=application/camlistore">Ranis Party Visit videos</a><br>\n');
-  response.write("</body></html>");
-  response.end();
-}
 
 server.listen(80);
 console.log("Server is listening");
