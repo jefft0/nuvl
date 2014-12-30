@@ -11,7 +11,7 @@ namespace StoreBlobs
   {
     static void Main(string[] args)
     {
-      processFile(@"C:\temp\cam6-15.mp4");
+      processFile(@"F:\cameras\2014\camera3\camera3.20141212_150000.mp4");
     }
 
     static void processFile(string sourceFilePath)
@@ -25,12 +25,18 @@ namespace StoreBlobs
         base64.Substring(2, 2).ToLower();
       var blobFilePath = blobFileDirectory + @"\" + base64 + ".dat";
 
+      Console.Out.Write(".");
       if (!Directory.Exists(blobFileDirectory))
         Directory.CreateDirectory(blobFileDirectory);
-
-      Console.Out.Write(".");
       copyBlob(sourceFilePath, blobFilePath);
-      Console.Out.WriteLine(". " + base64);
+
+      // Update the inventory.
+      Console.Out.Write(".");
+      var inventoryFilePath = @"C:\public\blobs\inventory.tsv";
+      using (var file = new StreamWriter(inventoryFilePath, true))
+        file.WriteLine(base64 + "\t" + sourceFilePath);
+
+      Console.Out.WriteLine(" " + base64);
     }
 
     static void copyBlob(string sourceFilePath, string blobFilePath)
@@ -47,8 +53,8 @@ namespace StoreBlobs
 
     static byte[] getFileSha256(string filePath)
     {
-      using (var fileStream = File.OpenRead(filePath))
-        return SHA256Managed.Create().ComputeHash(fileStream);
+      using (var file = File.OpenRead(filePath))
+        return SHA256Managed.Create().ComputeHash(file);
     }
 
     static string toBase64(byte[] binary)
