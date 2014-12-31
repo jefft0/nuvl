@@ -11,19 +11,29 @@ namespace StoreBlobs
   {
     static void Main(string[] args)
     {
-      processFile(@"F:\cameras\2014\camera3\camera3.20141212_150000.mp4");
+      foreach (var directoryPath in new string[] {
+                 @"F:\cameras\2014\camera3",
+                 @"F:\cameras\2014\camera4",
+                 @"F:\cameras\2014\camera5",
+                 @"F:\cameras\2014\camera6"
+               })
+      {
+        foreach (var fileName in new DirectoryInfo(directoryPath).GetFiles())
+          processFile(directoryPath + @"\" + fileName);
+      }
     }
 
     static void processFile(string sourceFilePath)
     {
       Console.Out.Write(sourceFilePath + " .");
       var base64 = toBase64(getFileSha256(sourceFilePath));
+      var blobName = "sha256-" + base64;
 
       var blobsDirectory = @"C:\public\blobs";
       var blobFileDirectory = blobsDirectory + @"\sha256\" +
         base64.Substring(0, 2).ToLower() + @"\" +
         base64.Substring(2, 2).ToLower();
-      var blobFilePath = blobFileDirectory + @"\" + base64 + ".dat";
+      var blobFilePath = blobFileDirectory + @"\" + blobName + ".dat";
 
       Console.Out.Write(".");
       if (!Directory.Exists(blobFileDirectory))
@@ -34,9 +44,9 @@ namespace StoreBlobs
       Console.Out.Write(".");
       var inventoryFilePath = @"C:\public\blobs\inventory.tsv";
       using (var file = new StreamWriter(inventoryFilePath, true))
-        file.WriteLine(base64 + "\t" + sourceFilePath);
+        file.WriteLine(blobName + "\t" + sourceFilePath);
 
-      Console.Out.WriteLine(" " + base64);
+      Console.Out.WriteLine(" " + blobName);
     }
 
     static void copyBlob(string sourceFilePath, string blobFilePath)
