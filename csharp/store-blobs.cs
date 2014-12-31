@@ -13,8 +13,11 @@ namespace StoreBlobs
     static void 
     Main(string[] args)
     {
+      makeYearIndexPage("sha256-rtYulQtjHQO96_a-QNqWaLmuGBz0tjwyEP7K0LTey60", 2014, 11);
+#if false
       var inventory = readCameraVideoInventory();
       makeMonthIndexPage(inventory, 2014, 11);
+#endif
 #if false
       foreach (var directoryPath in new string[] {
                  @"F:\cameras\2014\camera3",
@@ -28,7 +31,7 @@ namespace StoreBlobs
 #endif
     }
 
-    static void 
+    static string 
     storeFile(string sourceFilePath)
     {
       Console.Out.Write(sourceFilePath + " .");
@@ -52,6 +55,8 @@ namespace StoreBlobs
         file.WriteLine(blobName + "\t" + sourceFilePath);
 
       Console.Out.WriteLine(" " + blobName);
+
+      return blobName;
     }
 
     static void 
@@ -268,6 +273,106 @@ namespace StoreBlobs
 @"  </tbody>
 </table>
 </body>
+</html>
+");
+      }
+    }
+
+    static void
+    makeYearIndexPage(string monthBlobName, int year, int month)
+    {
+      var firstOfMonth = new DateTime(year, month, 1);
+      var daysInMonth = DateTime.DaysInMonth(year, month);
+      var monthName = firstOfMonth.ToString("MMMM");
+      var monthUri = blobNameToUri(monthBlobName);
+
+      // We make a grid with 7 columns. The week starts on a Monday.
+      // Get the grid index of the first of the month.
+      var day1GridIndex = (int)firstOfMonth.DayOfWeek - 1 % 7;
+      if (day1GridIndex < 0)
+        day1GridIndex += 7;
+
+      var filePath = tempDirectory_ + @"\" + "year index " + year + ".html";
+      using (var file = new StreamWriter(filePath)) {
+        // Start the page.
+        file.Write(
+@"<!DOCTYPE HTML PUBLIC ""-//W3C//DTD HTML 4.01 Transitional//EN"">
+<html>
+<head>
+  <meta content=""text/html; charset=ISO-8859-1""
+ http-equiv=""Content-Type"">
+  <title>Jeff's House Videos Index</title>
+</head>
+<body>
+<a href=""http://data.thefirst.org"">Home</a>
+<h1>Jeff's House Videos Index</h1>
+You must use Firefox with the ""ni"" add-on. To install it, download<br>
+<a
+ href=""https://github.com/jefft0/nuvl/raw/master/ni-protocol/firefox/ni-protocol.xpi"">https://github.com/jefft0/nuvl/raw/master/ni-protocol/firefox/ni-protocol.xpi</a><br>
+In Firefox, open Tools &gt; Add-ons. In the ""gear"" or ""wrench"" menu,
+click Install Add-on From File and open ni-protocol.xpi. Restart
+Firefox.<br>
+<br>
+After installing the ""ni"" add-on. Click on a date below to see the
+videos. Each is about 200 MB, but should start streaming in Firefox.<br>
+<h2>" + year + @"</h2>
+");
+
+        // Start the month table.
+        file.Write(
+@"      <table style=""text-align: left;"" border=""0"" cellpadding=""2"" cellspacing=""0"">
+        <tbody>
+          <tr>
+            <td colspan=""7""
+ style=""text-align: center; vertical-align: top;""><a href=""" +
+                  monthUri + @"?ct=text/html"">" + monthName + " " + year + @"</a><br>
+            </td>
+          </tr>
+          <tr>
+            <td style=""vertical-align: top;"">M<br></td>
+            <td style=""vertical-align: top;"">T<br></td>
+            <td style=""vertical-align: top;"">W<br></td>
+            <td style=""vertical-align: top;"">T<br></td>
+            <td style=""vertical-align: top;"">F<br></td>
+            <td style=""vertical-align: top;"">S<br></td>
+            <td style=""vertical-align: top;"">S<br></td>
+          </tr>
+");
+        var haveMoreDays = true;
+        for (var iRow = 0; haveMoreDays; ++iRow) {
+          // Start the week.
+          file.WriteLine("          <tr>");
+
+          for (var iColumn = 0; iColumn < 7; ++iColumn) {
+            var gridIndex = 7 * iRow + iColumn;
+            var day = 1 + gridIndex - day1GridIndex;
+            if (day >= daysInMonth)
+              haveMoreDays = false;
+
+            if (day < 1 || day > daysInMonth) {
+              // Not a day. Leave blank.
+              file.WriteLine("            <td><br></td>");
+              continue;
+            }
+
+            // Show the day.
+            file.WriteLine(@"            <td style=""vertical-align: top;""><a href=""" +
+              monthUri + "?ct=text/html#" + day + @""">" + day + "</td>");
+          }
+
+          // Finish the week.
+          file.WriteLine("          </tr>");
+        }
+
+        // Finish the month table.
+        file.Write(
+@"        </tbody>
+      </table>
+");
+
+        // Finish the page.
+        file.Write(
+@"</body>
 </html>
 ");
       }
