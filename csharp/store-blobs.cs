@@ -6,6 +6,11 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
+// Dictionary<day, SortedDictionary<time, Dictionary<cameraNumber, blobName>>>.
+using VideoInventory = System.Collections.Generic.Dictionary<System.DateTime, System.Collections.Generic.SortedDictionary<System.TimeSpan, System.Collections.Generic.Dictionary<int, string>>>;
+// Dictionary<filePath, blobName>.
+using FileInventory = System.Collections.Generic.Dictionary<string, string>;
+
 namespace StoreBlobs
 {
   class StoreBlobs
@@ -13,20 +18,35 @@ namespace StoreBlobs
     static void 
     Main(string[] args)
     {
-      makeYearIndexPage("sha256-rtYulQtjHQO96_a-QNqWaLmuGBz0tjwyEP7K0LTey60", 2014, 11);
-#if false
-      var inventory = readCameraVideoInventory();
-      makeMonthIndexPage(inventory, 2014, 11);
+#if true
+      var fileInventory = readFileInventory();
+      var videoInventory = getCameraVideoInventory(fileInventory);
+      var monthPagePath = makeMonthIndexPage(videoInventory, 2014, 11);
+      var monthPageBlobName = storeFile(monthPagePath);
+      makeYearIndexPage(fileInventory, videoInventory, 2014, 11);
 #endif
 #if false
+      var re = new Regex("^camera(\\d{1})\\.(\\d{4})(\\d{2})(\\d{2})_(\\d{2})(\\d{2})(\\d{2})\\.mp4$");
+
       foreach (var directoryPath in new string[] {
-                 @"F:\cameras\2014\camera3",
-                 @"F:\cameras\2014\camera4",
-                 @"F:\cameras\2014\camera5",
-                 @"F:\cameras\2014\camera6"
+                 @"G:\cameras\2014\camera3",
+                 @"G:\cameras\2014\camera4",
+                 @"G:\cameras\2014\camera5",
+                 @"G:\cameras\2014\camera6"
                }) {
-        foreach (var fileName in new DirectoryInfo(directoryPath).GetFiles())
+        foreach (var fileName in new DirectoryInfo(directoryPath).GetFiles()) {
+          var match = re.Match(fileName.ToString());
+          if (!match.Success)
+            continue;
+
+          var year = Int32.Parse(match.Groups[2].Value);
+          var month = Int32.Parse(match.Groups[3].Value);
+          var day = Int32.Parse(match.Groups[4].Value);
+          if (!(year == 2014 && month == 11))
+            continue;
+
           storeFile(directoryPath + @"\" + fileName);
+        }
       }
 #endif
     }
@@ -94,12 +114,11 @@ namespace StoreBlobs
         return null;
     }
 
-    static Dictionary<DateTime, SortedDictionary<TimeSpan, Dictionary<int, string>>>
-    readCameraVideoInventory()
+    static FileInventory
+    readFileInventory()
     {
       var tab = new char[] { '\t' };
-      var re = new Regex("^camera(\\d{1})\\.(\\d{4})(\\d{2})(\\d{2})_(\\d{2})(\\d{2})(\\d{2})\\.mp4$");
-      var result = new Dictionary<DateTime, SortedDictionary<TimeSpan, Dictionary<int, string>>>();
+      var result = new FileInventory();
 
       using (var file = new StreamReader(inventoryFilePath_)) {
         var line = "";
@@ -108,42 +127,64 @@ namespace StoreBlobs
           var blobName = splitLine[0];
           var filePath = splitLine[1];
 
-          var match = re.Match(Path.GetFileName(filePath));
-          if (!match.Success)
-            continue;
-
-          var camera = Int32.Parse(match.Groups[1].Value);
-          var year = Int32.Parse(match.Groups[2].Value);
-          var month = Int32.Parse(match.Groups[3].Value);
-          var day = Int32.Parse(match.Groups[4].Value);
-          var hour = Int32.Parse(match.Groups[5].Value);
-          var minute = Int32.Parse(match.Groups[6].Value);
-          var second = Int32.Parse(match.Groups[7].Value);
-
-          var date = new DateTime(year, month, day);
-          var time = new TimeSpan(hour, minute, second);
-
-          SortedDictionary<TimeSpan, Dictionary<int, string>> timeSet;
-          if (!result.TryGetValue(date, out timeSet)) {
-            timeSet = new SortedDictionary<TimeSpan, Dictionary<int, string>>();
-            result[date] = timeSet;
-          }
-
-          Dictionary<int, string> cameraSet;
-          if (!timeSet.TryGetValue(time, out cameraSet)) {
-            cameraSet = new Dictionary<int, string>();
-            timeSet[time] = cameraSet;
-          }
-
-          cameraSet[camera] = blobName;
+          result[filePath] = blobName;
         }
       }
 
       return result;
     }
 
-    static void
-    makeMonthIndexPage(Dictionary<DateTime, SortedDictionary<TimeSpan, Dictionary<int, string>>> inventory, int year, int month)
+    static VideoInventory
+    getCameraVideoInventory(FileInventory fileInventory)
+    {
+      var re = new Regex("^camera(\\d{1})\\.(\\d{4})(\\d{2})(\\d{2})_(\\d{2})(\\d{2})(\\d{2})\\.mp4$");
+      var result = new VideoInventory();
+
+      foreach (var entry in fileInventory) {
+        var filePath = entry.Key;
+        var blobName = entry.Value;
+
+        var match = re.Match(Path.GetFileName(filePath));
+        if (!match.Success)
+          continue;
+
+        var camera = Int32.Parse(match.Groups[1].Value);
+        var year = Int32.Parse(match.Groups[2].Value);
+        var month = Int32.Parse(match.Groups[3].Value);
+        var day = Int32.Parse(match.Groups[4].Value);
+        var hour = Int32.Parse(match.Groups[5].Value);
+        var minute = Int32.Parse(match.Groups[6].Value);
+        var second = Int32.Parse(match.Groups[7].Value);
+
+        var date = new DateTime(year, month, day);
+        var time = new TimeSpan(hour, minute, second);
+
+        SortedDictionary<TimeSpan, Dictionary<int, string>> timeSet;
+        if (!result.TryGetValue(date, out timeSet)) {
+          timeSet = new SortedDictionary<TimeSpan, Dictionary<int, string>>();
+          result[date] = timeSet;
+        }
+
+        Dictionary<int, string> cameraSet;
+        if (!timeSet.TryGetValue(time, out cameraSet)) {
+          cameraSet = new Dictionary<int, string>();
+          timeSet[time] = cameraSet;
+        }
+
+        cameraSet[camera] = blobName;
+      }
+
+      return result;
+    }
+
+    static string
+    getMonthIndexPageFilePath(int year, int month)
+    {
+      return tempDirectory_ + @"\" + "video index " + year + "-" + month.ToString("D2") + ".html";
+    }
+
+    static string
+    makeMonthIndexPage(VideoInventory videoInventory, int year, int month)
     {
       var firstOfMonth = new DateTime(year, month, 1);
       var daysInMonth = DateTime.DaysInMonth(year, month);
@@ -153,12 +194,11 @@ namespace StoreBlobs
       var cameraName = new string[] { 
         "", "", "", "Living<br>Room", "Bed<br>Room", "Bath<br>Room", "Bath<br>Room"};
 
-      // Get the days for the month;
+      // Get the days for the month.
       var daySet = new Dictionary<int, SortedDictionary<TimeSpan, Dictionary<int, string>>>();
-      foreach (var entry in inventory) {
-        if (entry.Key.Year == year && entry.Key.Month == month) {
+      foreach (var entry in videoInventory) {
+        if (entry.Key.Year == year && entry.Key.Month == month)
           daySet[entry.Key.Day] = entry.Value;
-        }
       }
 
       // We make a grid with 7 columns. The week starts on a Monday.
@@ -167,7 +207,7 @@ namespace StoreBlobs
       if (day1GridIndex < 0)
         day1GridIndex += 7;
 
-      var filePath = tempDirectory_ + @"\" + "video index " + year + "-" + month.ToString("D2") + ".html";
+      var filePath = getMonthIndexPageFilePath(year, month);
       using (var file = new StreamWriter(filePath)) {
         file.Write(
 @"<!DOCTYPE HTML PUBLIC ""-//W3C//DTD HTML 4.01 Transitional//EN"">
@@ -276,15 +316,28 @@ namespace StoreBlobs
 </html>
 ");
       }
+
+      return filePath;
     }
 
-    static void
-    makeYearIndexPage(string monthBlobName, int year, int month)
+    static string
+    makeYearIndexPage(FileInventory fileInventory, VideoInventory videoInventory, int year, int month)
     {
+      string monthBlobName;
+      if (!fileInventory.TryGetValue(getMonthIndexPageFilePath(year, month), out monthBlobName))
+        return null;
+
       var firstOfMonth = new DateTime(year, month, 1);
       var daysInMonth = DateTime.DaysInMonth(year, month);
       var monthName = firstOfMonth.ToString("MMMM");
       var monthUri = blobNameToUri(monthBlobName);
+
+      // Get the days in the month that have a video.
+      var daySet = new HashSet<int>();
+      foreach (var entry in videoInventory) {
+        if (entry.Key.Year == year && entry.Key.Month == month)
+          daySet.Add(entry.Key.Day);
+      }
 
       // We make a grid with 7 columns. The week starts on a Monday.
       // Get the grid index of the first of the month.
@@ -356,8 +409,12 @@ videos. Each is about 200 MB, but should start streaming in Firefox.<br>
             }
 
             // Show the day.
-            file.WriteLine(@"            <td style=""vertical-align: top;""><a href=""" +
-              monthUri + "?ct=text/html#" + day + @""">" + day + "</td>");
+            if (daySet.Contains(day))
+              file.WriteLine(@"            <td style=""vertical-align: top;""><a href=""" +
+                monthUri + "?ct=text/html#" + day + @""">" + day + "</td>");
+            else
+              // No videos for the day.
+              file.WriteLine(@"            <td style=""vertical-align: top;"">" + day + "</td>");
           }
 
           // Finish the week.
@@ -376,6 +433,8 @@ videos. Each is about 200 MB, but should start streaming in Firefox.<br>
 </html>
 ");
       }
+
+      return filePath;
     }
 
     static string inventoryFilePath_ = @"C:\public\blobs\inventory.tsv";
