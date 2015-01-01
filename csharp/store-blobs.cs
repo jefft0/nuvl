@@ -21,9 +21,13 @@ namespace StoreBlobs
 #if true
       var fileInventory = readFileInventory();
       var videoInventory = getCameraVideoInventory(fileInventory);
-      var monthPagePath = makeMonthIndexPage(videoInventory, 2014, 11);
+      //var monthPagePath = writeMonthIndexPage(videoInventory, 2014, 11);
       //storeFile(monthPagePath);
-      makeVideosIndexPage(fileInventory, videoInventory);
+      //fileInventory = readFileInventory();
+      //writeVideosIndexPage(fileInventory, videoInventory);
+      //storeFile(videosIndexPagePath_);
+      //fileInventory = readFileInventory();
+      writeMainIndexPage(fileInventory[videosIndexPagePath_]);
 #endif
 #if false
       var re = new Regex("^camera(\\d{1})\\.(\\d{4})(\\d{2})(\\d{2})_(\\d{2})(\\d{2})(\\d{2})\\.mp4$");
@@ -184,7 +188,7 @@ namespace StoreBlobs
     }
 
     static string
-    makeMonthIndexPage(VideoInventory videoInventory, int year, int month)
+    writeMonthIndexPage(VideoInventory videoInventory, int year, int month)
     {
       var firstOfMonth = new DateTime(year, month, 1);
       var daysInMonth = DateTime.DaysInMonth(year, month);
@@ -320,11 +324,10 @@ namespace StoreBlobs
       return filePath;
     }
 
-    static string
-    makeVideosIndexPage(FileInventory fileInventory, VideoInventory videoInventory)
+    static void
+    writeVideosIndexPage(FileInventory fileInventory, VideoInventory videoInventory)
     {
-      var filePath = tempDirectory_ + @"\videos-index.html";
-      using (var file = new StreamWriter(filePath)) {
+      using (var file = new StreamWriter(videosIndexPagePath_)) {
         // Start the page.
         file.Write(
 @"<!DOCTYPE HTML PUBLIC ""-//W3C//DTD HTML 4.01 Transitional//EN"">
@@ -344,8 +347,8 @@ In Firefox, open Tools &gt; Add-ons. In the ""gear"" or ""wrench"" menu,
 click Install Add-on From File and open ni-protocol.xpi. Restart
 Firefox.<br>
 <br>
-After installing the ""ni"" add-on. Click on a date below to see the
-videos. Each is about 200 MB, but should start streaming in Firefox.<br>
+After installing the ""ni"" add-on, click on a date below then click on a time to see a
+video. Each is about 200 MB, but should start streaming in Firefox.<br>
 ");
 
         // Get the years for which we have videos.
@@ -384,8 +387,6 @@ videos. Each is about 200 MB, but should start streaming in Firefox.<br>
 </html>
 ");
       }
-
-      return filePath;
     }
 
     private static void 
@@ -474,7 +475,42 @@ videos. Each is about 200 MB, but should start streaming in Firefox.<br>
 ");
     }
 
+    static void
+    writeMainIndexPage(string videosIndexPageBlobName)
+    {
+      using (var file = new StreamWriter(@"C:\inetpub\wwwroot\index.htm")) {
+        file.Write(
+@"<!DOCTYPE HTML PUBLIC ""html"">
+<html>
+<head>
+  <meta http-equiv=""content-type""
+ content=""text/html; charset=windows-1252"">
+  <title>data.thefirst.org</title>
+</head>
+<body>
+<h1>Welcome to data.thefirst.org</h1>
+You must use Firefox with the ""ni"" add-on. To install it, download<br>
+<a
+ href=""https://github.com/jefft0/nuvl/raw/master/ni-protocol/firefox/ni-protocol.xpi"">https://github.com/jefft0/nuvl/raw/master/ni-protocol/firefox/ni-protocol.xpi</a><br>
+In Firefox, open Tools &gt; Add-ons. In the ""gear"" or ""wrench"" menu,
+click Install Add-on From File and open ni-protocol.xpi. Restart
+Firefox.<br>
+<br>
+<big><big>See <a
+ href=""ni:///sha-256;W8g1GC6RuyMAhuqYK32ICWal7NAaCi9oy8E64niDi6Y?ct=text/html"">Ranis
+Party
+Visit
+videos</a></big></big><br>
+<br>
+<a href=""" + blobNameToUri(videosIndexPageBlobName) + @"?ct=text/html"">All videos by date</a>
+</body>
+</html>
+");
+      }
+    }
+
     static string inventoryFilePath_ = @"C:\public\blobs\inventory.tsv";
     static string tempDirectory_ = @"C:\temp";
+    static string videosIndexPagePath_ = tempDirectory_ + @"\videos-index.html";
   }
 }
