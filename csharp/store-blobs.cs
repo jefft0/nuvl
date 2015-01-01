@@ -22,8 +22,8 @@ namespace StoreBlobs
       var fileInventory = readFileInventory();
       var videoInventory = getCameraVideoInventory(fileInventory);
       var monthPagePath = makeMonthIndexPage(videoInventory, 2014, 11);
-      var monthPageBlobName = storeFile(monthPagePath);
-      makeYearIndexPage(fileInventory, videoInventory, 2014, 11);
+      //storeFile(monthPagePath);
+      makeVideosIndexPage(fileInventory, videoInventory);
 #endif
 #if false
       var re = new Regex("^camera(\\d{1})\\.(\\d{4})(\\d{2})(\\d{2})_(\\d{2})(\\d{2})(\\d{2})\\.mp4$");
@@ -321,31 +321,9 @@ namespace StoreBlobs
     }
 
     static string
-    makeYearIndexPage(FileInventory fileInventory, VideoInventory videoInventory, int year, int month)
+    makeVideosIndexPage(FileInventory fileInventory, VideoInventory videoInventory)
     {
-      string monthBlobName;
-      if (!fileInventory.TryGetValue(getMonthIndexPageFilePath(year, month), out monthBlobName))
-        return null;
-
-      var firstOfMonth = new DateTime(year, month, 1);
-      var daysInMonth = DateTime.DaysInMonth(year, month);
-      var monthName = firstOfMonth.ToString("MMMM");
-      var monthUri = blobNameToUri(monthBlobName);
-
-      // Get the days in the month that have a video.
-      var daySet = new HashSet<int>();
-      foreach (var entry in videoInventory) {
-        if (entry.Key.Year == year && entry.Key.Month == month)
-          daySet.Add(entry.Key.Day);
-      }
-
-      // We make a grid with 7 columns. The week starts on a Monday.
-      // Get the grid index of the first of the month.
-      var day1GridIndex = (int)firstOfMonth.DayOfWeek - 1 % 7;
-      if (day1GridIndex < 0)
-        day1GridIndex += 7;
-
-      var filePath = tempDirectory_ + @"\" + "year index " + year + ".html";
+      var filePath = tempDirectory_ + @"\videos-index.html";
       using (var file = new StreamWriter(filePath)) {
         // Start the page.
         file.Write(
@@ -368,17 +346,84 @@ Firefox.<br>
 <br>
 After installing the ""ni"" add-on. Click on a date below to see the
 videos. Each is about 200 MB, but should start streaming in Firefox.<br>
-<h2>" + year + @"</h2>
 ");
 
-        // Start the month table.
+        // Get the years for which we have videos.
+        var yearSet = new SortedSet<int>();
+        foreach (var entry in videoInventory)
+          yearSet.Add(entry.Key.Year);
+
+        foreach (var year in yearSet) {
+          // Start the year table.
+          file.Write(
+@"<h2>" + year + @"</h2>
+<table style=""text-align: left;"" border=""1"" cellpadding=""2"" cellspacing=""0"">
+  <tbody>
+");
+
+          file.WriteLine("    <tr>");
+          for (var month = 1; month <= 6; ++month)
+            writeMonthIndexCell(fileInventory, videoInventory, year, month, file);
+          file.WriteLine("    </tr>");
+
+          file.WriteLine("    <tr>");
+          for (var month = 7; month <= 12; ++month)
+            writeMonthIndexCell(fileInventory, videoInventory, year, month, file);
+          file.WriteLine("    </tr>");
+
+          // Finish the year table.
+          file.Write(
+@"  </tbody>
+</table>
+");
+        }
+
+        // Finish the page.
         file.Write(
-@"      <table style=""text-align: left;"" border=""0"" cellpadding=""2"" cellspacing=""0"">
+@"</body>
+</html>
+");
+      }
+
+      return filePath;
+    }
+
+    private static void 
+    writeMonthIndexCell(FileInventory fileInventory, VideoInventory videoInventory, int year, int month, StreamWriter file)
+    {
+      string monthBlobName;
+      if (!fileInventory.TryGetValue(getMonthIndexPageFilePath(year, month), out monthBlobName))
+        return;
+
+      // Get the days in the month that have a video.
+      var daySet = new HashSet<int>();
+      foreach (var entry in videoInventory) {
+        if (entry.Key.Year == year && entry.Key.Month == month)
+          daySet.Add(entry.Key.Day);
+      }
+      if (daySet.Count == 0)
+        return;
+
+      var firstOfMonth = new DateTime(year, month, 1);
+      var daysInMonth = DateTime.DaysInMonth(year, month);
+      var monthName = firstOfMonth.ToString("MMMM");
+      var monthUri = blobNameToUri(monthBlobName);
+
+      // We make a grid with 7 columns. The week starts on a Monday.
+      // Get the grid index of the first of the month.
+      var day1GridIndex = (int)firstOfMonth.DayOfWeek - 1 % 7;
+      if (day1GridIndex < 0)
+        day1GridIndex += 7;
+
+      // Start the cell and month table.
+      file.Write(
+@"      <td style=""vertical-align: top;"">
+      <table style=""text-align: left;"" border=""0"" cellpadding=""2"" cellspacing=""0"">
         <tbody>
           <tr>
             <td colspan=""7""
  style=""text-align: center; vertical-align: top;""><a href=""" +
-                  monthUri + @"?ct=text/html"">" + monthName + " " + year + @"</a><br>
+                monthUri + @"?ct=text/html"">" + monthName + " " + year + @"</a><br>
             </td>
           </tr>
           <tr>
@@ -391,50 +436,42 @@ videos. Each is about 200 MB, but should start streaming in Firefox.<br>
             <td style=""vertical-align: top;"">S<br></td>
           </tr>
 ");
-        var haveMoreDays = true;
-        for (var iRow = 0; haveMoreDays; ++iRow) {
-          // Start the week.
-          file.WriteLine("          <tr>");
+      var haveMoreDays = true;
+      for (var iRow = 0; haveMoreDays; ++iRow) {
+        // Start the week.
+        file.WriteLine("          <tr>");
 
-          for (var iColumn = 0; iColumn < 7; ++iColumn) {
-            var gridIndex = 7 * iRow + iColumn;
-            var day = 1 + gridIndex - day1GridIndex;
-            if (day >= daysInMonth)
-              haveMoreDays = false;
+        for (var iColumn = 0; iColumn < 7; ++iColumn) {
+          var gridIndex = 7 * iRow + iColumn;
+          var day = 1 + gridIndex - day1GridIndex;
+          if (day >= daysInMonth)
+            haveMoreDays = false;
 
-            if (day < 1 || day > daysInMonth) {
-              // Not a day. Leave blank.
-              file.WriteLine("            <td><br></td>");
-              continue;
-            }
-
-            // Show the day.
-            if (daySet.Contains(day))
-              file.WriteLine(@"            <td style=""vertical-align: top;""><a href=""" +
-                monthUri + "?ct=text/html#" + day + @""">" + day + "</td>");
-            else
-              // No videos for the day.
-              file.WriteLine(@"            <td style=""vertical-align: top;"">" + day + "</td>");
+          if (day < 1 || day > daysInMonth) {
+            // Not a day. Leave blank.
+            file.WriteLine("            <td><br></td>");
+            continue;
           }
 
-          // Finish the week.
-          file.WriteLine("          </tr>");
+          // Show the day.
+          if (daySet.Contains(day))
+            file.WriteLine(@"            <td style=""vertical-align: top;""><a href=""" +
+              monthUri + "?ct=text/html#" + day + @""">" + day + "</td>");
+          else
+            // No videos for the day.
+            file.WriteLine(@"            <td style=""vertical-align: top;"">" + day + "</td>");
         }
 
-        // Finish the month table.
-        file.Write(
-@"        </tbody>
-      </table>
-");
-
-        // Finish the page.
-        file.Write(
-@"</body>
-</html>
-");
+        // Finish the week.
+        file.WriteLine("          </tr>");
       }
 
-      return filePath;
+      // Finish the month table and cell.
+      file.Write(
+@"        </tbody>
+      </table>
+      </td>
+");
     }
 
     static string inventoryFilePath_ = @"C:\public\blobs\inventory.tsv";
