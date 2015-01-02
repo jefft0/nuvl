@@ -22,11 +22,9 @@ namespace StoreBlobs
       var fileInventory = readFileInventory();
       var videoInventory = getCameraVideoInventory(fileInventory);
       //var monthPagePath = writeMonthIndexPage(videoInventory, 2014, 11);
-      //storeFile(monthPagePath);
-      //fileInventory = readFileInventory();
+      //storeFile(monthPagePath, fileInventory);
       //writeVideosIndexPage(fileInventory, videoInventory);
-      //storeFile(videosIndexPagePath_);
-      //fileInventory = readFileInventory();
+      //storeFile(videosIndexPagePath_, fileInventory);
       writeMainIndexPage(fileInventory[videosIndexPagePath_]);
 #endif
 #if false
@@ -49,14 +47,14 @@ namespace StoreBlobs
           if (!(year == 2014 && month == 11))
             continue;
 
-          storeFile(directoryPath + @"\" + fileName);
+          storeFile(directoryPath + @"\" + fileName, null);
         }
       }
 #endif
     }
 
-    static string 
-    storeFile(string sourceFilePath)
+    static string
+    storeFile(string sourceFilePath, FileInventory fileInventory)
     {
       Console.Out.Write(sourceFilePath + " .");
       var base64 = toBase64(readFileSha256(sourceFilePath));
@@ -79,6 +77,9 @@ namespace StoreBlobs
         file.WriteLine(blobName + "\t" + sourceFilePath);
 
       Console.Out.WriteLine(" " + blobName);
+
+      if (fileInventory != null)
+        fileInventory[sourceFilePath] = blobName;
 
       return blobName;
     }
@@ -340,15 +341,8 @@ namespace StoreBlobs
 <body>
 <a href=""http://data.thefirst.org"">Home</a>
 <h1>Jeff's House Videos Index</h1>
-You must use Firefox with the ""ni"" add-on. To install it, download<br>
-<a
- href=""https://github.com/jefft0/nuvl/raw/master/ni-protocol/firefox/ni-protocol.xpi"">https://github.com/jefft0/nuvl/raw/master/ni-protocol/firefox/ni-protocol.xpi</a><br>
-In Firefox, open Tools &gt; Add-ons. In the ""gear"" or ""wrench"" menu,
-click Install Add-on From File and open ni-protocol.xpi. Restart
-Firefox.<br>
-<br>
-After installing the ""ni"" add-on, click on a date below then click on a time to see a
-video. Each is about 200 MB, but should start streaming in Firefox.<br>
+Click on a date below then click on a time to see a
+video. Each is about 200 MB, but should start streaming in Firefox.
 ");
 
         // Get the years for which we have videos.
