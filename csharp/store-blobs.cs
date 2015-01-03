@@ -21,11 +21,10 @@ namespace StoreBlobs
 #if true
       var fileInventory = readFileInventory();
       var videoInventory = getCameraVideoInventory(fileInventory);
-      //var monthPagePath = writeMonthIndexPage(videoInventory, 2014, 11);
-      //storeFile(monthPagePath, fileInventory);
+      //storeFile(writeMonthIndexPage(videoInventory, 2014, 12), fileInventory);
       //writeVideosIndexPage(fileInventory, videoInventory);
       //storeFile(videosIndexPagePath_, fileInventory);
-      writeMainIndexPage(fileInventory[videosIndexPagePath_]);
+      //writeMainIndexPage(fileInventory[videosIndexPagePath_]);
 #endif
 #if false
       var re = new Regex("^camera(\\d{1})\\.(\\d{4})(\\d{2})(\\d{2})_(\\d{2})(\\d{2})(\\d{2})\\.mp4$");
@@ -111,10 +110,10 @@ namespace StoreBlobs
         .Replace("=", "").Replace('+', '-').Replace('/', '_');
     }
 
-    static string blobNameToUri(string blobName)
+    static string blobNameToUri(string blobName, string contentType)
     {
       if (blobName.StartsWith("sha256-"))
-        return ("ni:///sha-256;" + blobName.Substring(7));
+        return ("ni:///sha-256;" + blobName.Substring(7) + "?ct=" + contentType);
       else
         return null;
     }
@@ -293,7 +292,7 @@ namespace StoreBlobs
                   // No video for the camera at this time.
                   file.WriteLine("              <br>");
                 else
-                  file.WriteLine(@"              <a href=""" + blobNameToUri(blobName) + @""">" + 
+                  file.WriteLine(@"              <a href=""" + blobNameToUri(blobName, "video/mp4") + @""">" + 
                     entry.Key.Hours.ToString("D2") + ":" + entry.Key.Minutes.ToString("D2") +
                     (entry.Key.Seconds != 0 ? ":" + entry.Key.Seconds.ToString("D2") : "") + "</a><br>");
               }
@@ -402,7 +401,7 @@ video. Each is about 200 MB, but should start streaming in Firefox.
       var firstOfMonth = new DateTime(year, month, 1);
       var daysInMonth = DateTime.DaysInMonth(year, month);
       var monthName = firstOfMonth.ToString("MMMM");
-      var monthUri = blobNameToUri(monthBlobName);
+      var monthUri = blobNameToUri(monthBlobName, "text/html");
 
       // We make a grid with 7 columns. The week starts on a Monday.
       // Get the grid index of the first of the month.
@@ -418,7 +417,7 @@ video. Each is about 200 MB, but should start streaming in Firefox.
           <tr>
             <td colspan=""7""
  style=""text-align: center; vertical-align: top;""><a href=""" +
-                monthUri + @"?ct=text/html"">" + monthName + " " + year + @"</a><br>
+                monthUri + @""">" + monthName + " " + year + @"</a><br>
             </td>
           </tr>
           <tr>
@@ -451,7 +450,7 @@ video. Each is about 200 MB, but should start streaming in Firefox.
           // Show the day.
           if (daySet.Contains(day))
             file.WriteLine(@"            <td style=""vertical-align: top;""><a href=""" +
-              monthUri + "?ct=text/html#" + day + @""">" + day + "</td>");
+              monthUri + "#" + day + @""">" + day + "</td>");
           else
             // No videos for the day.
             file.WriteLine(@"            <td style=""vertical-align: top;"">" + day + "</td>");
@@ -496,7 +495,7 @@ Party
 Visit
 videos</a></big></big><br>
 <br>
-<a href=""" + blobNameToUri(videosIndexPageBlobName) + @"?ct=text/html"">All videos by date</a>
+<a href=""" + blobNameToUri(videosIndexPageBlobName, "text/html") + @""">All videos by date</a>
 </body>
 </html>
 ");
