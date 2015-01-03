@@ -74,6 +74,11 @@ NiProtocol.prototype = {
       if (contentType == null)
         // There is no content type, so just fetch HTTP directly.
         return httpHandler.newChannel(wellKnownUri);
+      if (contentType == "video/mp4")
+        // Even though the web server sends "application/octet-stream", Firefox
+        //   seems to show it correctly as mp4. At the moment, ContentChannel doesn't
+        //   handle the HTTP streaming protocol, so we can use an httpHandler directly.
+        return httpHandler.newChannel(wellKnownUri);
 
       // Use a ContentChannel so that we can control the contentType.
       var requestContent = function(contentListener) {
