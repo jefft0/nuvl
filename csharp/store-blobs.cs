@@ -9,51 +9,44 @@ using System.Threading.Tasks;
 // Dictionary<day, SortedDictionary<time, Dictionary<cameraNumber, blobName>>>.
 using VideoInventory = System.Collections.Generic.Dictionary<System.DateTime, System.Collections.Generic.SortedDictionary<System.TimeSpan, System.Collections.Generic.Dictionary<int, string>>>;
 // Dictionary<filePath, blobName>.
-using FileInventory = System.Collections.Generic.Dictionary<string, string>;
 
 namespace StoreBlobs
 {
   class StoreBlobs
   {
-    static void 
+    static void
     Main(string[] args)
     {
 #if true
       var fileInventory = readFileInventory();
       var videoInventory = getCameraVideoInventory(fileInventory);
-      //storeFile(writeMonthIndexPage(videoInventory, 2014, 12), fileInventory);
+      //storeFile(writeMonthIndexPage(videoInventory, 2015, 1), fileInventory);
       //writeVideosIndexPage(fileInventory, videoInventory);
       //storeFile(videosIndexPagePath_, fileInventory);
-      //writeMainIndexPage(fileInventory[videosIndexPagePath_]);
+      writeMainIndexPage(fileInventory[videosIndexPagePath_]);
 #endif
 #if false
       var re = new Regex("^camera(\\d{1})\\.(\\d{4})(\\d{2})(\\d{2})_(\\d{2})(\\d{2})(\\d{2})\\.mp4$");
 
-      foreach (var directoryPath in new string[] {
-                 @"G:\cameras\2014\camera3",
-                 @"G:\cameras\2014\camera4",
-                 @"G:\cameras\2014\camera5",
-                 @"G:\cameras\2014\camera6"
-               }) {
-        foreach (var fileName in new DirectoryInfo(directoryPath).GetFiles()) {
-          var match = re.Match(fileName.ToString());
-          if (!match.Success)
-            continue;
+      var directoryPath = @"D:\BlueIris\New";
+      foreach (var fileName in new DirectoryInfo(directoryPath).GetFiles()) {
+        var match = re.Match(fileName.ToString());
+        if (!match.Success)
+          continue;
 
-          var year = Int32.Parse(match.Groups[2].Value);
-          var month = Int32.Parse(match.Groups[3].Value);
-          var day = Int32.Parse(match.Groups[4].Value);
-          if (!(year == 2014 && month == 11))
-            continue;
+        var year = Int32.Parse(match.Groups[2].Value);
+        var month = Int32.Parse(match.Groups[3].Value);
+        var day = Int32.Parse(match.Groups[4].Value);
+        if (!(year == 2015 && month == 1 && day == 3))
+          continue;
 
-          storeFile(directoryPath + @"\" + fileName, null);
-        }
+        storeFile(directoryPath + @"\" + fileName, null);
       }
 #endif
     }
 
     static string
-    storeFile(string sourceFilePath, FileInventory fileInventory)
+    storeFile(string sourceFilePath, Dictionary<string, string> fileInventory)
     {
       Console.Out.Write(sourceFilePath + " .");
       var base64 = toBase64(readFileSha256(sourceFilePath));
@@ -118,11 +111,11 @@ namespace StoreBlobs
         return null;
     }
 
-    static FileInventory
+    static Dictionary<string, string>
     readFileInventory()
     {
       var tab = new char[] { '\t' };
-      var result = new FileInventory();
+      var result = new Dictionary<string, string>();
 
       using (var file = new StreamReader(inventoryFilePath_)) {
         var line = "";
@@ -139,7 +132,7 @@ namespace StoreBlobs
     }
 
     static VideoInventory
-    getCameraVideoInventory(FileInventory fileInventory)
+    getCameraVideoInventory(Dictionary<string, string> fileInventory)
     {
       var re = new Regex("^camera(\\d{1})\\.(\\d{4})(\\d{2})(\\d{2})_(\\d{2})(\\d{2})(\\d{2})\\.mp4$");
       var result = new VideoInventory();
@@ -325,7 +318,7 @@ namespace StoreBlobs
     }
 
     static void
-    writeVideosIndexPage(FileInventory fileInventory, VideoInventory videoInventory)
+    writeVideosIndexPage(Dictionary<string, string> fileInventory, VideoInventory videoInventory)
     {
       using (var file = new StreamWriter(videosIndexPagePath_)) {
         // Start the page.
@@ -349,7 +342,7 @@ video. Each is about 200 MB, but should start streaming in Firefox.
         foreach (var entry in videoInventory)
           yearSet.Add(entry.Key.Year);
 
-        foreach (var year in yearSet) {
+        foreach (var year in yearSet.Reverse()) {
           // Start the year table.
           file.Write(
 @"<h2>" + year + @"</h2>
@@ -383,7 +376,7 @@ video. Each is about 200 MB, but should start streaming in Firefox.
     }
 
     private static void 
-    writeMonthIndexCell(FileInventory fileInventory, VideoInventory videoInventory, int year, int month, StreamWriter file)
+    writeMonthIndexCell(Dictionary<string, string> fileInventory, VideoInventory videoInventory, int year, int month, StreamWriter file)
     {
       string monthBlobName;
       if (!fileInventory.TryGetValue(getMonthIndexPageFilePath(year, month), out monthBlobName))
@@ -482,12 +475,10 @@ video. Each is about 200 MB, but should start streaming in Firefox.
 </head>
 <body>
 <h1>Welcome to data.thefirst.org</h1>
-You must use Firefox with the ""ni"" add-on. To install it, download<br>
+You must use Firefox with the ""ni"" add-on. To install it, save ni-protocol.xpi to your computer:<br>
 <a
  href=""https://github.com/jefft0/nuvl/raw/master/ni-protocol/firefox/ni-protocol.xpi"">https://github.com/jefft0/nuvl/raw/master/ni-protocol/firefox/ni-protocol.xpi</a><br>
-In Firefox, open Tools &gt; Add-ons. In the ""gear"" or ""wrench"" menu,
-click Install Add-on From File and open ni-protocol.xpi. Restart
-Firefox.<br>
+Start Firefox and drag ni-protocol.xpi into Firefox. Follow the instructions and restart Firefox.<br>
 <br>
 <big><big>See <a
  href=""ni:///sha-256;HYZqg5qloCjCQWjP2fysPHMjEjzSCM6d-Ntzv5kCt04?ct=text/html"">Ranis
