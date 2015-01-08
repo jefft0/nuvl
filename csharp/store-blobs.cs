@@ -23,7 +23,7 @@ namespace StoreBlobs
       //storeFile(writeMonthIndexPage(videoInventory, 2015, 1), fileInventory);
       //writeVideosIndexPage(fileInventory, videoInventory);
       //storeFile(videosIndexPagePath_, fileInventory);
-      writeMainIndexPage(fileInventory[videosIndexPagePath_]);
+      writeMainIndexPage(fileInventory, videoInventory);
 #endif
 #if false
       var re = new Regex("^camera(\\d{1})\\.(\\d{4})(\\d{2})(\\d{2})_(\\d{2})(\\d{2})(\\d{2})\\.mp4$");
@@ -37,7 +37,8 @@ namespace StoreBlobs
         var year = Int32.Parse(match.Groups[2].Value);
         var month = Int32.Parse(match.Groups[3].Value);
         var day = Int32.Parse(match.Groups[4].Value);
-        if (!(year == 2015 && month == 1 && day == 3))
+        var hour = Int32.Parse(match.Groups[5].Value);
+        if (!(year == 2015 && month == 1 && day == 8 && hour < 14))
           continue;
 
         storeFile(directoryPath + @"\" + fileName, null);
@@ -186,10 +187,6 @@ namespace StoreBlobs
       var firstOfMonth = new DateTime(year, month, 1);
       var daysInMonth = DateTime.DaysInMonth(year, month);
       var monthName = firstOfMonth.ToString("MMMM");
-      var cameraBackgroundColor = new string[] { 
-        "", "", "", "rgb(255, 255, 255);", "rgb(255, 255, 204);", "rgb(255, 204, 204);", "rgb(204, 255, 255);"};
-      var cameraName = new string[] { 
-        "", "", "", "Living<br>Room", "Bed<br>Room", "Bath<br>Room", "Bath<br>Room"};
 
       // Get the days for the month.
       var daySet = new Dictionary<int, SortedDictionary<TimeSpan, Dictionary<int, string>>>();
@@ -248,57 +245,18 @@ namespace StoreBlobs
               continue;
             }
 
-            // Show the day.
+            // Start a cell for the day.
             file.Write(
 @"      <td style=""vertical-align: top;""><a name=""" + day + @"""/><b>" + day + @"</b><br>
 ");
 
             SortedDictionary<TimeSpan, Dictionary<int, string>> timeSet;
-            if (!daySet.TryGetValue(day, out timeSet)) {
-              // No videos for today. Just finish the cell.
-              file.WriteLine("      </td>");
-              continue;
-            }
+            if (daySet.TryGetValue(day, out timeSet))
+              // Only show the table if there are videos for today.
+              writeDayVideosTable(file, timeSet);
 
-            // Make the table with each camera and the times.
-            file.Write(
-@"      <table style=""text-align: left;"" border=""0"" cellpadding=""3"" cellspacing=""0"">
-        <tbody>
-          <tr>
-");
-            // Write the camera names.
-            for (var camera = 3; camera <= 6; ++camera)
-              file.WriteLine(@"            <td style=""vertical-align: top; background-color: " +
-                cameraBackgroundColor[camera] + @""">" + cameraName[camera] + "<br>cam" + camera + "<br></td>");
-            file.Write(
-@"          </tr>
-          <tr>
-");
-
-            // Write the camera times.
-            for (var camera = 3; camera <= 6; ++camera) {
-              file.WriteLine(@"            <td style=""vertical-align: top; background-color: " +
-                cameraBackgroundColor[camera] + @""">");
-              foreach (var entry in timeSet) {
-                string blobName;
-                if (!entry.Value.TryGetValue(camera, out blobName))
-                  // No video for the camera at this time.
-                  file.WriteLine("              <br>");
-                else
-                  file.WriteLine(@"              <a href=""" + blobNameToUri(blobName, "video/mp4") + @""">" + 
-                    entry.Key.Hours.ToString("D2") + ":" + entry.Key.Minutes.ToString("D2") +
-                    (entry.Key.Seconds != 0 ? ":" + entry.Key.Seconds.ToString("D2") : "") + "</a><br>");
-              }
-              file.WriteLine("            </td>");
-            }
-
-            // Finish the table with the camera names and times.
-            file.Write(
-@"          </tr>
-        </tbody>
-      </table>
-      </td>
-");
+            // Finish the cell for the day.
+            file.WriteLine("      </td>");
           }
 
           // Finish the week.
@@ -315,6 +273,53 @@ namespace StoreBlobs
       }
 
       return filePath;
+    }
+
+    private static void writeDayVideosTable(StreamWriter file, SortedDictionary<TimeSpan, Dictionary<int, string>> timeSet)
+    {
+      var cameraBackgroundColor = new string[] { 
+        "", "", "", "rgb(255, 255, 255);", "rgb(255, 255, 204);", "rgb(255, 204, 204);", "rgb(204, 255, 255);"};
+      var cameraName = new string[] { 
+        "", "", "", "Living<br>Room", "Bed<br>Room", "Bath<br>Room", "Bath<br>Room"};
+
+      // Make the table with each camera and the times.
+      file.Write(
+@"      <table style=""text-align: left;"" border=""0"" cellpadding=""3"" cellspacing=""0"">
+        <tbody>
+          <tr>
+");
+      // Write the camera names.
+      for (var camera = 3; camera <= 6; ++camera)
+        file.WriteLine(@"            <td style=""vertical-align: top; background-color: " +
+          cameraBackgroundColor[camera] + @""">" + cameraName[camera] + "<br>cam" + camera + "<br></td>");
+      file.Write(
+@"          </tr>
+          <tr>
+");
+
+      // Write the camera times.
+      for (var camera = 3; camera <= 6; ++camera) {
+        file.WriteLine(@"            <td style=""vertical-align: top; background-color: " +
+          cameraBackgroundColor[camera] + @""">");
+        foreach (var entry in timeSet) {
+          string blobName;
+          if (!entry.Value.TryGetValue(camera, out blobName))
+            // No video for the camera at this time.
+            file.WriteLine("              <br>");
+          else
+            file.WriteLine(@"              <a href=""" + blobNameToUri(blobName, "video/mp4") + @""">" +
+              entry.Key.Hours.ToString("D2") + ":" + entry.Key.Minutes.ToString("D2") +
+              (entry.Key.Seconds != 0 ? ":" + entry.Key.Seconds.ToString("D2") : "") + "</a><br>");
+        }
+        file.WriteLine("            </td>");
+      }
+
+      // Finish the table with the camera names and times.
+      file.Write(
+@"          </tr>
+        </tbody>
+      </table>
+");
     }
 
     static void
@@ -462,8 +467,11 @@ video. Each is about 200 MB, but should start streaming in Firefox.
     }
 
     static void
-    writeMainIndexPage(string videosIndexPageBlobName)
+    writeMainIndexPage(Dictionary<string, string> fileInventory, VideoInventory videoInventory)
     {
+      var videosIndexPageBlobName = fileInventory[videosIndexPagePath_];
+      var today = DateTime.Now.Date;
+
       using (var file = new StreamWriter(@"C:\inetpub\wwwroot\index.htm")) {
         file.Write(
 @"<!DOCTYPE HTML PUBLIC ""html"">
@@ -481,13 +489,20 @@ You must use Firefox with the ""ni"" add-on. To install it, save ni-protocol.xpi
 Start Firefox and drag ni-protocol.xpi into Firefox. Follow the instructions and restart Firefox.<br>
 <br>
 <big><big>See <a
- href=""ni:///sha-256;HYZqg5qloCjCQWjP2fysPHMjEjzSCM6d-Ntzv5kCt04?ct=text/html"">Ranis
-Party
-Visit
-videos</a></big></big><br>
+ href=""ni:///sha-256;HYZqg5qloCjCQWjP2fysPHMjEjzSCM6d-Ntzv5kCt04?ct=text/html"">Ranis Party Visit videos</a></big></big><br>
 <br>
-<a href=""" + blobNameToUri(videosIndexPageBlobName, "text/html") + @""">All videos by date</a>
-</body>
+<a href=""" + blobNameToUri(videosIndexPageBlobName, "text/html") + @""">All videos by date</a><br><br>
+Videos for today, " + today.ToString("d MMMM, yyyy") + @":<br>
+");
+
+        SortedDictionary<TimeSpan, Dictionary<int, string>> timeSet;
+        if (!videoInventory.TryGetValue(today, out timeSet))
+          file.WriteLine("(no videos yet)<br>");
+        else
+          writeDayVideosTable(file, timeSet);
+
+        file.Write(
+@"</body>
 </html>
 ");
       }
