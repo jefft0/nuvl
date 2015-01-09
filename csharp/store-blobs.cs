@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 
 // Dictionary<day, SortedDictionary<time, Dictionary<cameraNumber, blobName>>>.
 using VideoInventory = System.Collections.Generic.Dictionary<System.DateTime, System.Collections.Generic.SortedDictionary<System.TimeSpan, System.Collections.Generic.Dictionary<int, string>>>;
-// Dictionary<filePath, blobName>.
 
 namespace StoreBlobs
 {
@@ -17,33 +16,69 @@ namespace StoreBlobs
     static void
     Main(string[] args)
     {
-#if true
       var fileInventory = readFileInventory();
       var videoInventory = getCameraVideoInventory(fileInventory);
-      //storeFile(writeMonthIndexPage(videoInventory, 2015, 1), fileInventory);
-      //writeVideosIndexPage(fileInventory, videoInventory);
-      //storeFile(videosIndexPagePath_, fileInventory);
-      writeMainIndexPage(fileInventory, videoInventory);
-#endif
-#if false
-      var re = new Regex("^camera(\\d{1})\\.(\\d{4})(\\d{2})(\\d{2})_(\\d{2})(\\d{2})(\\d{2})\\.mp4$");
+      var now = DateTime.Now;
+      var newVideoDates = storeNewVideos(videoInventory, now);
+
+      // Refresh the inventory.
+      fileInventory = readFileInventory();
+      videoInventory = getCameraVideoInventory(fileInventory);
+
+      // Get the months that have been modified with new videos.
+      var modifiedMonths = new HashSet<DateTime>();
+      foreach (var date in newVideoDates) {
+        if (date >= now.Date)
+          // We don't update the video index for today's videos.
+          continue;
+
+        modifiedMonths.Add(new DateTime(date.Year, date.Month, 1));
+      }
+
+      if (modifiedMonths.Count > 0) {
+        // Update the index pages.
+        foreach (var month in modifiedMonths)
+          storeFile(writeMonthIndexPage(videoInventory, month.Year, month.Month), fileInventory);
+
+        writeVideosIndexPage(fileInventory, videoInventory);
+        storeFile(videosIndexPagePath_, fileInventory);
+      }
+
+      writeMainIndexPage(fileInventory, videoInventory, now);
+    }
+
+    private static HashSet<DateTime>
+    storeNewVideos(VideoInventory videoInventory, DateTime now)
+    {
+      var newVideoDates = new HashSet<DateTime>();
+      var startOfHour = now.Date.AddHours(now.Hour);
 
       var directoryPath = @"D:\BlueIris\New";
       foreach (var fileName in new DirectoryInfo(directoryPath).GetFiles()) {
-        var match = re.Match(fileName.ToString());
-        if (!match.Success)
+        int camera;
+        DateTime date;
+        TimeSpan time;
+        if (!parseCameraFileName(fileName.Name, out camera, out date, out time))
+          continue;
+        if ((date + time) >= startOfHour)
+          // Skip videos being recorded this hour.
           continue;
 
-        var year = Int32.Parse(match.Groups[2].Value);
-        var month = Int32.Parse(match.Groups[3].Value);
-        var day = Int32.Parse(match.Groups[4].Value);
-        var hour = Int32.Parse(match.Groups[5].Value);
-        if (!(year == 2015 && month == 1 && day == 8 && hour < 14))
-          continue;
+        SortedDictionary<TimeSpan, Dictionary<int, string>> timeSet;
+        if (videoInventory.TryGetValue(date, out timeSet)) {
+          Dictionary<int, string> cameraSet;
+          if (timeSet.TryGetValue(time, out cameraSet)) {
+            if (cameraSet.ContainsKey(camera))
+              // Already stored the video.
+              continue;
+          }
+        }
 
         storeFile(directoryPath + @"\" + fileName, null);
+        newVideoDates.Add(date);
       }
-#endif
+
+      return newVideoDates;
     }
 
     static string
@@ -63,6 +98,7 @@ namespace StoreBlobs
       if (!Directory.Exists(blobFileDirectory))
         Directory.CreateDirectory(blobFileDirectory);
       copyBlob(sourceFilePath, blobFilePath);
+      // TODO: Copy to OneDrive.
 
       // Update the inventory.
       Console.Out.Write(".");
@@ -132,30 +168,45 @@ namespace StoreBlobs
       return result;
     }
 
+    static bool
+    parseCameraFileName(string filePath, out int camera, out DateTime date, out TimeSpan time)
+    {
+      var match = cameraFileNameRegex_.Match(Path.GetFileName(filePath));
+      if (!match.Success) {
+        camera = 0;
+        date = new DateTime();
+        time = new TimeSpan();
+        return false;
+      }
+
+      camera = Int32.Parse(match.Groups[1].Value);
+      var year = Int32.Parse(match.Groups[2].Value);
+      var month = Int32.Parse(match.Groups[3].Value);
+      var day = Int32.Parse(match.Groups[4].Value);
+      var hour = Int32.Parse(match.Groups[5].Value);
+      var minute = Int32.Parse(match.Groups[6].Value);
+      var second = Int32.Parse(match.Groups[7].Value);
+
+      date = new DateTime(year, month, day);
+      time = new TimeSpan(hour, minute, second);
+
+      return true;
+    }
+
     static VideoInventory
     getCameraVideoInventory(Dictionary<string, string> fileInventory)
     {
-      var re = new Regex("^camera(\\d{1})\\.(\\d{4})(\\d{2})(\\d{2})_(\\d{2})(\\d{2})(\\d{2})\\.mp4$");
       var result = new VideoInventory();
 
       foreach (var entry in fileInventory) {
         var filePath = entry.Key;
         var blobName = entry.Value;
 
-        var match = re.Match(Path.GetFileName(filePath));
-        if (!match.Success)
+        int camera;
+        DateTime date;
+        TimeSpan time;
+        if (!parseCameraFileName(filePath, out camera, out date, out time))
           continue;
-
-        var camera = Int32.Parse(match.Groups[1].Value);
-        var year = Int32.Parse(match.Groups[2].Value);
-        var month = Int32.Parse(match.Groups[3].Value);
-        var day = Int32.Parse(match.Groups[4].Value);
-        var hour = Int32.Parse(match.Groups[5].Value);
-        var minute = Int32.Parse(match.Groups[6].Value);
-        var second = Int32.Parse(match.Groups[7].Value);
-
-        var date = new DateTime(year, month, day);
-        var time = new TimeSpan(hour, minute, second);
 
         SortedDictionary<TimeSpan, Dictionary<int, string>> timeSet;
         if (!result.TryGetValue(date, out timeSet)) {
@@ -467,10 +518,10 @@ video. Each is about 200 MB, but should start streaming in Firefox.
     }
 
     static void
-    writeMainIndexPage(Dictionary<string, string> fileInventory, VideoInventory videoInventory)
+    writeMainIndexPage(Dictionary<string, string> fileInventory, VideoInventory videoInventory, DateTime now)
     {
       var videosIndexPageBlobName = fileInventory[videosIndexPagePath_];
-      var today = DateTime.Now.Date;
+      var today = now.Date;
 
       using (var file = new StreamWriter(@"C:\inetpub\wwwroot\index.htm")) {
         file.Write(
@@ -511,5 +562,6 @@ Videos for today, " + today.ToString("d MMMM, yyyy") + @":<br>
     static string inventoryFilePath_ = @"C:\public\blobs\inventory.tsv";
     static string tempDirectory_ = @"C:\temp";
     static string videosIndexPagePath_ = tempDirectory_ + @"\videos-index.html";
+    static Regex cameraFileNameRegex_ = new Regex("^camera(\\d{1})\\.(\\d{4})(\\d{2})(\\d{2})_(\\d{2})(\\d{2})(\\d{2})\\.mp4$");
   }
 }
