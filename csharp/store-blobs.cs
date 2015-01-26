@@ -16,6 +16,9 @@ namespace StoreBlobs
     static void
     Main(string[] args)
     {
+#if false
+      syncAllPublicToOneDrive();
+#else
       var fileInventory = readFileInventory();
       var videoInventory = getCameraVideoInventory(fileInventory);
       var now = DateTime.Now;
@@ -45,6 +48,7 @@ namespace StoreBlobs
       }
 
       writeMainIndexPage(fileInventory, videoInventory, now);
+#endif
     }
 
     private static HashSet<DateTime>
@@ -54,11 +58,11 @@ namespace StoreBlobs
       var startOfHour = now.Date.AddHours(now.Hour);
 
       var directoryPath = @"D:\BlueIris\New";
-      foreach (var fileName in new DirectoryInfo(directoryPath).GetFiles()) {
+      foreach (var fileInfo in new DirectoryInfo(directoryPath).GetFiles()) {
         int camera;
         DateTime date;
         TimeSpan time;
-        if (!parseCameraFileName(fileName.Name, out camera, out date, out time))
+        if (!parseCameraFileName(fileInfo.Name, out camera, out date, out time))
           continue;
         if ((date + time) >= startOfHour)
           // Skip videos being recorded this hour.
@@ -74,7 +78,7 @@ namespace StoreBlobs
           }
         }
 
-        storeFile(directoryPath + @"\" + fileName, null);
+        storeFile(fileInfo.FullName, null);
         newVideoDates.Add(date);
       }
 
@@ -88,17 +92,19 @@ namespace StoreBlobs
       var base64 = toBase64(readFileSha256(sourceFilePath));
       var blobName = "sha256-" + base64;
 
-      var blobsDirectory = @"C:\public\blobs";
-      var blobFileDirectory = blobsDirectory + @"\sha256\" +
+      var blobFileSubPath = @"sha256\" +
         base64.Substring(0, 2).ToLower() + @"\" +
         base64.Substring(2, 2).ToLower();
-      var blobFilePath = blobFileDirectory + @"\" + blobName + ".dat";
+      var blobFileDirectory = Path.Combine(blobsFilePath_, blobFileSubPath);
+      var blobFilePath = Path.Combine(blobFileDirectory, blobName + ".dat");
 
       Console.Out.Write(".");
       if (!Directory.Exists(blobFileDirectory))
         Directory.CreateDirectory(blobFileDirectory);
       copyBlob(sourceFilePath, blobFilePath);
-      // TODO: Copy to OneDrive.
+      // Sync to OneDrive.
+      Console.Out.Write(".");
+      syncFile(new FileInfo(blobFilePath), Path.Combine(oneDriveBlobsFilePath_, blobFileSubPath));
 
       // Update the inventory.
       Console.Out.Write(".");
@@ -229,7 +235,7 @@ namespace StoreBlobs
     static string
     getMonthIndexPageFilePath(int year, int month)
     {
-      return tempDirectory_ + @"\" + "video index " + year + "-" + month.ToString("D2") + ".html";
+      return tempDirectoryPath_ + @"\" + "video index " + year + "-" + month.ToString("D2") + ".html";
     }
 
     static string
@@ -326,7 +332,7 @@ namespace StoreBlobs
       return filePath;
     }
 
-    private static void writeDayVideosTable(StreamWriter file, SortedDictionary<TimeSpan, Dictionary<int, string>> timeSet)
+    static void writeDayVideosTable(StreamWriter file, SortedDictionary<TimeSpan, Dictionary<int, string>> timeSet)
     {
       var cameraBackgroundColor = new string[] { 
         "", "", "", "rgb(255, 255, 255);", "rgb(255, 255, 204);", "rgb(255, 204, 204);", "rgb(204, 255, 255);"};
@@ -431,7 +437,7 @@ video. Each is about 200 MB, but should start streaming in Firefox.
       }
     }
 
-    private static void 
+    static void 
     writeMonthIndexCell(Dictionary<string, string> fileInventory, VideoInventory videoInventory, int year, int month, StreamWriter file)
     {
       string monthBlobName;
@@ -559,9 +565,40 @@ Videos for today, " + today.ToString("d MMMM, yyyy") + @":<br>
       }
     }
 
-    static string inventoryFilePath_ = @"C:\public\blobs\inventory.tsv";
-    static string tempDirectory_ = @"C:\temp";
-    static string videosIndexPagePath_ = tempDirectory_ + @"\videos-index.html";
+    static void syncAllPublicToOneDrive()
+    {
+      syncAll(new DirectoryInfo(publicFilePath_), oneDrivePublicFilePath_);
+    }
+
+    static void syncAll(DirectoryInfo fromDirectoryInfo, string toDirectoryPath)
+    {
+      // Sync files.
+      foreach (var fromFileInfo in fromDirectoryInfo.GetFiles()) {
+        Console.Out.WriteLine("Copy " + fromFileInfo.FullName);
+        syncFile(fromFileInfo, toDirectoryPath);
+      }
+
+      // Recursivly sync directories.
+      foreach (var fromSubdirectoryInfo in fromDirectoryInfo.GetDirectories())
+        syncAll(fromSubdirectoryInfo, Path.Combine(toDirectoryPath, fromSubdirectoryInfo.Name));
+    }
+
+    static void syncFile(FileInfo fromFileInfo, string toDirectoryPath)
+    {
+      var toFileInfo = new FileInfo(Path.Combine(toDirectoryPath, fromFileInfo.Name));
+      if (!toFileInfo.Exists) {
+        Directory.CreateDirectory(toDirectoryPath);
+        fromFileInfo.CopyTo(toFileInfo.FullName);
+      }
+    }
+
+    static string publicFilePath_ = @"C:\public";
+    static string blobsFilePath_ = Path.Combine(publicFilePath_, "blobs");
+    static string inventoryFilePath_ = Path.Combine(blobsFilePath_, "inventory.tsv");
+    static string oneDrivePublicFilePath_ = @"C:\Users\jeff\OneDrive\public";
+    static string oneDriveBlobsFilePath_ = Path.Combine(oneDrivePublicFilePath_, "blobs");
+    static string tempDirectoryPath_ = @"C:\temp";
+    static string videosIndexPagePath_ = tempDirectoryPath_ + @"\videos-index.html";
     static Regex cameraFileNameRegex_ = new Regex("^camera(\\d{1})\\.(\\d{4})(\\d{2})(\\d{2})_(\\d{2})(\\d{2})(\\d{2})\\.mp4$");
   }
 }
