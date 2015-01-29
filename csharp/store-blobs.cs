@@ -16,9 +16,6 @@ namespace StoreBlobs
     static void
     Main(string[] args)
     {
-#if false
-      syncAllPublicToOneDrive();
-#else
       var fileInventory = readFileInventory();
       var videoInventory = getCameraVideoInventory(fileInventory);
       var now = DateTime.Now;
@@ -48,7 +45,6 @@ namespace StoreBlobs
       }
 
       writeMainIndexPage(fileInventory, videoInventory, now);
-#endif
     }
 
     private static HashSet<DateTime>
@@ -104,7 +100,7 @@ namespace StoreBlobs
       copyBlob(sourceFilePath, blobFilePath);
       // Sync to OneDrive.
       Console.Out.Write(".");
-      syncFile(new FileInfo(blobFilePath), Path.Combine(oneDriveBlobsFilePath_, blobFileSubPath));
+      syncFile(new FileInfo(blobFilePath), Path.Combine(oneDriveBlobsFilePath_, blobFileSubPath), false);
 
       // Update the inventory.
       Console.Out.Write(".");
@@ -573,20 +569,20 @@ Videos for today, " + today.ToString("d MMMM, yyyy") + @":<br>
     static void syncAll(DirectoryInfo fromDirectoryInfo, string toDirectoryPath)
     {
       // Sync files.
-      foreach (var fromFileInfo in fromDirectoryInfo.GetFiles()) {
-        Console.Out.WriteLine("Copy " + fromFileInfo.FullName);
-        syncFile(fromFileInfo, toDirectoryPath);
-      }
+      foreach (var fromFileInfo in fromDirectoryInfo.GetFiles())
+        syncFile(fromFileInfo, toDirectoryPath, true);
 
       // Recursivly sync directories.
       foreach (var fromSubdirectoryInfo in fromDirectoryInfo.GetDirectories())
         syncAll(fromSubdirectoryInfo, Path.Combine(toDirectoryPath, fromSubdirectoryInfo.Name));
     }
 
-    static void syncFile(FileInfo fromFileInfo, string toDirectoryPath)
+    static void syncFile(FileInfo fromFileInfo, string toDirectoryPath, bool verbose)
     {
       var toFileInfo = new FileInfo(Path.Combine(toDirectoryPath, fromFileInfo.Name));
       if (!toFileInfo.Exists) {
+        if (verbose)
+          Console.Out.WriteLine("Copy " + fromFileInfo.FullName);
         Directory.CreateDirectory(toDirectoryPath);
         fromFileInfo.CopyTo(toFileInfo.FullName);
       }
