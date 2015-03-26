@@ -89,10 +89,10 @@ namespace StoreBlobs
       var blobName = "sha256-" + base64;
 
       var blobFileSubPath = @"sha256\" +
-        base64.Substring(0, 2).ToLower() + @"\" +
-        base64.Substring(2, 2).ToLower();
+        upperBang(base64.Substring(0, 2)) + @"\" +
+        upperBang(base64.Substring(2, 2));
       var blobFileDirectory = Path.Combine(blobsFilePath_, blobFileSubPath);
-      var blobFilePath = Path.Combine(blobFileDirectory, blobName + ".dat");
+      var blobFilePath = Path.Combine(blobFileDirectory, upperBang(blobName) + ".dat");
 
       Console.Out.Write(".");
       if (!Directory.Exists(blobFileDirectory))
@@ -587,6 +587,23 @@ Videos for today, " + today.ToString("d MMMM, yyyy") + @":<br>
         fromFileInfo.CopyTo(toFileInfo.FullName);
       }
     }
+
+    /**
+     * Replaces all upper-case characters C with C!. Windows filenames are
+     * case-insensitive, so this is used to make upper-case letters distinct.
+     */
+    static string upperBang(string value)
+    {
+      var result = new StringBuilder();
+      foreach (var c in value) {
+        result.Append(c);
+        if (c >= 'A' && c <= 'Z')
+          result.Append('!');
+      }
+
+      return result.ToString();
+    }
+
 
     static string publicFilePath_ = @"C:\public";
     static string blobsFilePath_ = Path.Combine(publicFilePath_, "blobs");
