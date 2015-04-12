@@ -16,6 +16,7 @@ namespace StoreBlobs
     static void
     Main(string[] args)
     {
+      var initialInventorySize = new FileInfo(inventoryFilePath_).Length;
       var fileInventory = readFileInventory();
       var videoInventory = getCameraVideoInventory(fileInventory);
       var now = DateTime.Now;
@@ -45,6 +46,12 @@ namespace StoreBlobs
       }
 
       writeMainIndexPage(fileInventory, videoInventory, now);
+      // Sanity check the inventory file size.
+      if (new FileInfo(inventoryFilePath_).Length < initialInventorySize)
+        Console.Out.WriteLine
+          ("ERROR: The inventory file has gotten smaller and may have been overwritten.");
+      else
+        // Back up the inventory file.
     }
 
     private static HashSet<DateTime>
@@ -610,6 +617,7 @@ Videos for today, " + today.ToString("d MMMM, yyyy") + @":<br>
     static string inventoryFilePath_ = Path.Combine(blobsFilePath_, "inventory.tsv");
     static string oneDrivePublicFilePath_ = @"C:\Users\jeff\OneDrive\public";
     static string oneDriveBlobsFilePath_ = Path.Combine(oneDrivePublicFilePath_, "blobs");
+    static string oneDriveInventoryFilePath_ = Path.Combine(oneDriveBlobsFilePath_, "inventory.tsv");
     static string tempDirectoryPath_ = @"C:\temp";
     static string videosIndexPagePath_ = tempDirectoryPath_ + @"\videos-index.html";
     static Regex cameraFileNameRegex_ = new Regex("^camera(\\d{1})\\.(\\d{4})(\\d{2})(\\d{2})_(\\d{2})(\\d{2})(\\d{2})\\.mp4$");
