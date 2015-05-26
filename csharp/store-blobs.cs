@@ -52,6 +52,7 @@ namespace StoreBlobs
           ("ERROR: The inventory file has gotten smaller and may have been overwritten.");
       else
         // Back up the inventory file.
+        File.Copy(inventoryFilePath_, oneDriveInventoryFilePath_, true);
     }
 
     private static HashSet<DateTime>
@@ -547,9 +548,6 @@ You must use Firefox with the ""ni"" add-on. To install it, save ni-protocol.xpi
 <a
  href=""https://github.com/jefft0/nuvl/raw/master/ni-protocol/firefox/ni-protocol.xpi"">https://github.com/jefft0/nuvl/raw/master/ni-protocol/firefox/ni-protocol.xpi</a><br>
 Start Firefox and drag ni-protocol.xpi into Firefox. Follow the instructions and restart Firefox.<br>
-<br>
-<big><big>See <a
- href=""ni:///sha-256;HYZqg5qloCjCQWjP2fysPHMjEjzSCM6d-Ntzv5kCt04?ct=text/html"">Ranis Party Visit videos</a></big></big><br>
 <br>
 <a href=""" + blobNameToUri(videosIndexPageBlobName, "text/html") + @""">All videos by date</a><br><br>
 Videos for today, " + today.ToString("d MMMM, yyyy") + @":<br>
