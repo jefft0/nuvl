@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using System.Text.RegularExpressions;
 
 namespace Nuvl
 {
@@ -326,7 +327,7 @@ namespace Nuvl
               if (nLines % 10000 == 0)
                 System.Console.Out.Write("\rnLines " + nLines);
 
-              processLine(line);
+              processLine(line, nLines);
             }
             System.Console.Out.WriteLine("");
           }
@@ -479,7 +480,7 @@ namespace Nuvl
     }
 
     private void
-    processLine(string line)
+    processLine(string line, int nLines)
     {
       // Assume one item or property per line.
 
@@ -487,16 +488,18 @@ namespace Nuvl
       if (line.Length == 0 || line[0] == '[' || line[0] == ']' || line[0] == ',')
         return;
 
-      var itemPrefix = "{\"id\":\"Q";
+      var itemPrefix = "{\"type\":\"item\",\"id\":\"Q";
+      if (nLines == 1)
+        itemPrefix = "[" + itemPrefix;
       if (line.StartsWith(itemPrefix))
         processItem(line, itemPrefix.Length);
       else {
-        var propertyPrefix = "{\"id\":\"P";
-        if (line.StartsWith(propertyPrefix))
-          processProperty(line, propertyPrefix.Length);
+        var match = Regex.Match(line, "^{\"type\":\"property\",\"datatype\":\"([\\w-]+)\",\"id\":\"P");
+        if (match.Success)
+          processProperty(line, match.ToString().Length);
         else
           throw new Exception
-          ("Not an item or property: " + line.Substring(0, Math.Min(25, line.Length)));
+          ("Line " + nLines + " not an item or property: " + line.Substring(0, Math.Min(75, line.Length)));
       }
     }
 
@@ -546,7 +549,7 @@ namespace Nuvl
     {
       var propertyPrefix =
         "\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P" + propertyId + 
-        "\",\"datatype\":\"wikibase-item\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":";
+        "\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":";
       var valueSet = new HashSet<int>();
       var iProperty = 0;
       while (true) {
