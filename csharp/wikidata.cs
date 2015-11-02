@@ -488,15 +488,18 @@ namespace Nuvl
       if (line.Length == 0 || line[0] == '[' || line[0] == ']' || line[0] == ',')
         return;
 
-      var itemPrefix = "{\"type\":\"item\",\"id\":\"Q";
+      string itemPattern;
       if (nLines == 1)
-        itemPrefix = "[" + itemPrefix;
-      if (line.StartsWith(itemPrefix))
-        processItem(line, itemPrefix.Length);
+        itemPattern = "^\\[{\"type\":\"item\",\"id\":\"Q(\\d+)";
+      else
+        itemPattern =    "^{\"type\":\"item\",\"id\":\"Q(\\d+)";
+      var match = Regex.Match(line, itemPattern);
+      if (match.Success)
+        processItem(line, Int32.Parse(match.Groups[1].Value));
       else {
-        var match = Regex.Match(line, "^{\"type\":\"property\",\"datatype\":\"([\\w-]+)\",\"id\":\"P");
+        match = Regex.Match(line, "^{\"type\":\"property\",\"datatype\":\"[\\w-]+\",\"id\":\"P(\\d+)");
         if (match.Success)
-          processProperty(line, match.ToString().Length);
+          processProperty(line, Int32.Parse(match.Groups[1].Value));
         else
           throw new Exception
           ("Line " + nLines + " not an item or property: " + line.Substring(0, Math.Min(75, line.Length)));
@@ -504,12 +507,8 @@ namespace Nuvl
     }
 
     private void
-    processItem(string line, int iIdStart)
+    processItem(string line, int id)
     {
-      var id = getInt(line, iIdStart, '\"');
-      if (id < 0)
-        return;
-
       if (items_.ContainsKey(id))
         Console.Out.WriteLine("\r>>>>>> Already have item " + items_[id]);
       var enLabel = getEnLabel(line);
@@ -532,12 +531,8 @@ namespace Nuvl
     }
 
     private void
-    processProperty(string line, int iIdStart)
+    processProperty(string line, int id)
     {
-      var id = getInt(line, iIdStart, '\"');
-      if (id < 0)
-        return;
-
       var enLabel = getEnLabel(line);
       if (propertyEnLabels_.ContainsKey(id))
         messages_.Add("Already have property P" + id + " \"" + propertyEnLabels_[id] + "\". Got \"" + enLabel + "\"");
@@ -547,40 +542,22 @@ namespace Nuvl
     private HashSet<int>
     getPropertyValues(Item item, string propertyName, string line, int propertyId)
     {
-      var propertyPrefix =
-        "\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P" + propertyId + 
-        "\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":";
       var valueSet = new HashSet<int>();
-      var iProperty = 0;
-      while (true) {
-        iProperty = line.IndexOf(propertyPrefix, iProperty);
-        if (iProperty < 0)
-          break;
 
-        iProperty += propertyPrefix.Length;
-        var value = getInt(line, iProperty, '}');
-        if (value >= 0) {
-          if (value != item.Id)
-            valueSet.Add(value);
-          else
-            messages_.Add("Item is " + propertyName + " itself: " + item);
-        }
+      foreach (Match match in Regex.Matches
+        (line, "\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P" + propertyId +
+               "\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":(\\d+)")) {
+        var value = Int32.Parse(match.Groups[1].Value);
+        if (value != item.Id)
+          valueSet.Add(value);
+        else
+          messages_.Add("Item is " + propertyName + " itself: " + item);
       }
 
       if (valueSet.Count == 0)
         return null;
       else
         return valueSet;
-    }
-
-    private static int
-    getInt(string line, int iStart, char endChar)
-    {
-      var iEndChar = line.IndexOf(endChar, iStart);
-      if (iEndChar < 0)
-        return -1;
-      var debug = line.Substring(iStart, iEndChar - iStart);
-      return Int32.Parse(line.Substring(iStart, iEndChar - iStart));
     }
 
     private static string
