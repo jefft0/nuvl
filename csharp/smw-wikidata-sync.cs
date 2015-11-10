@@ -25,5 +25,23 @@ namespace Nuvl
       else
         return -1;
     }
+
+    public static string getSmwType(string wikidataDatatype)
+    {
+      if (wikidataDatatype == "wikibase-item")
+        return "Page";
+      else if (wikidataDatatype == "globe-coordinate")
+        return "Geographic coordinate";
+      else if (wikidataDatatype == "quantity")
+        return "Quantity";
+      else if (wikidataDatatype == "time")
+        return "Date";
+      else if (wikidataDatatype == "url")
+        return "URL";
+      // TODO: wikibase-property?
+      else
+        // Includes string, monolingualtext, commonsMedia.
+        return "Text";
+    }
   }
 }
