@@ -66,7 +66,23 @@ namespace Nuvl
       return null;
     }
 
+    public void setText(string pageTitle, string text)
+    {
+      editHelper("text", pageTitle, text);
+    }
+
     public void appendText(string pageTitle, string text)
+    {
+      editHelper("appendText", pageTitle, text);
+    }
+
+    /// <summary>
+    /// Get the edit token for pageTitle, then send the edit command with the editParameters
+    /// </summary>
+    /// <param name="parameter">The edit parameter such as "text" or "appendText".</param>
+    /// <param name="pageTitle">The page title. This URL encodes the value.</param>
+    /// <param name="text">The text. This URL encodes the value.</param>
+    private void editHelper(string parameter, string pageTitle, string text)
     {
       int sleepMilliseconds = (int)(minEditMilliseconds_ - (getNowMilliseconds() - lastEditMilliseconds_));
       if (sleepMilliseconds > 0)
@@ -89,7 +105,7 @@ namespace Nuvl
 
           var responseJsonCode = client_.UploadString
             ("http://" + host_ + "/w/api.php?action=edit&format=json&title=" +
-             WebUtility.UrlEncode(pageTitle) + "&appendtext=" +
+             WebUtility.UrlEncode(pageTitle) + "&recreate&" + parameter + "=" +
              WebUtility.UrlEncode(text) + "&token=" + WebUtility.UrlEncode(edittoken), "");
           var responseJson = serializer.Deserialize<Dictionary<string, Object>>(responseJsonCode);
           var edit = (Dictionary<string, Object>)responseJson["edit"];
