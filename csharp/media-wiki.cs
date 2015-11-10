@@ -134,6 +134,6 @@ namespace Nuvl
     private string host_;
     private WebClient client_;
     private double lastEditMilliseconds_ = 0;
-    private const double minEditMilliseconds_ = 500;
+    private const double minEditMilliseconds_ = 2000;
   }
 }
