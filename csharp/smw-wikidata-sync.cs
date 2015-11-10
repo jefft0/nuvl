@@ -33,7 +33,7 @@ namespace Nuvl
       else if (wikidataDatatype == "globe-coordinate")
         return "Geographic coordinate";
       else if (wikidataDatatype == "quantity")
-        return "Quantity";
+        return "Number";
       else if (wikidataDatatype == "time")
         return "Date";
       else if (wikidataDatatype == "url")
