@@ -286,63 +286,35 @@ namespace Nuvl
     {
       var nLines = 0;
 
+      // TODO: Make this part of the properties_ data structure.
+      System.IO.File.WriteAllText(@"c:\temp\propertyDatatype.tsv", "");
+
       var startTime = DateTime.Now;
-      System.Console.Out.WriteLine(startTime);
+      Console.Out.WriteLine(startTime);
       using (var file = new FileStream(gzipFilePath, FileMode.Open, FileAccess.Read)) {
         using (var gzip = new GZipStream(file, CompressionMode.Decompress)) {
-#if false // byte line buffer instead of ReadLine.
-          var input = new byte[100000000];
-          var partialLineLength = 0;
-          var nBytesRead = 0;
-          while ((nBytesRead = gzip.Read(input, partialLineLength, input.Length - partialLineLength)) > 0)
-          {
-            var inputLength = partialLineLength + nBytesRead;
-            var iLineStart = 0;
-            while (iLineStart < inputLength)
-            {
-              var iNewline = Array.IndexOf(input, (byte)'\n', iLineStart, inputLength - iLineStart);
-              if (iNewline < 0)
-              {
-                // Shift the partial line to the beginning of the input.
-                partialLineLength = inputLength - iLineStart;
-                Array.Copy(input, iLineStart, input, 0, partialLineLength);
-
-                break;
-              }
-
-              ++nLines;
-              if (nLines % 10000 == 0)
-                System.Console.Out.WriteLine("nLines " + nLines + ", nItems ");
-
-              processLine(Encoding.ASCII.GetString(input, iLineStart, iNewline - iLineStart));
-
-              iLineStart = iNewline + 1;
-            }
-          }
-#else
           using (var reader = new StreamReader(gzip /* , Encoding.ASCII */)) {
             string line;
             while ((line = reader.ReadLine()) != null) {
               ++nLines;
               if (nLines % 10000 == 0)
-                System.Console.Out.Write("\rnLines " + nLines);
+                Console.Out.Write("\rnLines " + nLines);
 
               processLine(line, nLines);
             }
-            System.Console.Out.WriteLine("");
+            Console.Out.WriteLine("");
           }
-#endif
         }
       }
 
-      System.Console.Out.WriteLine("elapsed " + (DateTime.Now - startTime));
-      System.Console.Out.WriteLine("nLines " + nLines);
+      Console.Out.WriteLine("elapsed " + (DateTime.Now - startTime));
+      Console.Out.WriteLine("nLines " + nLines);
 
       foreach (var message in messages_)
-        System.Console.Out.WriteLine(message);
-      System.Console.Out.WriteLine("");
+        Console.Out.WriteLine(message);
+      Console.Out.WriteLine("");
 
-      System.Console.Out.Write("Writing dump files ...");
+      Console.Out.Write("Writing dump files ...");
       using (var file = new StreamWriter(@"c:\temp\itemEnLabels.tsv")) {
         foreach (var entry in items_)
           // TODO: escape the Json value.
@@ -358,11 +330,11 @@ namespace Nuvl
       dumpProperty(Item.getInstanceOf, @"c:\temp\instanceOf.tsv");
       dumpProperty(Item.getSubclassOf, @"c:\temp\subclassOf.tsv");
       dumpProperty(Item.getPartOf, @"c:\temp\partOf.tsv");
-      System.Console.Out.WriteLine(" done.");
+      Console.Out.WriteLine(" done.");
 
-      System.Console.Out.Write("Finding instances, subclasses and parts ...");
+      Console.Out.Write("Finding instances, subclasses and parts ...");
       setHasInstanceHasSubclassAndHasPart();
-      System.Console.Out.WriteLine(" done.");
+      Console.Out.WriteLine(" done.");
     }
 
     private void dumpProperty(Item.GetPropertyValues getPropertyValues, string filePath)
@@ -390,7 +362,7 @@ namespace Nuvl
         while ((line = file.ReadLine()) != null) {
           ++nLines;
           if (nLines % 100000 == 0)
-            System.Console.Out.Write("\rN itemEnLabels lines " + nLines);
+            Console.Out.Write("\rN itemEnLabels lines " + nLines);
 
           var splitLine = line.Split(new char[] { '\t' });
           var id = Int32.Parse(splitLine[0]);
@@ -398,7 +370,7 @@ namespace Nuvl
             // TODO: unescape the Json value.
             items_[id] = new Wikidata.Item(id, splitLine[1]);
         }
-        System.Console.Out.WriteLine("");
+        Console.Out.WriteLine("");
       }
 
       using (var file = new StreamReader(@"c:\temp\propertyEnLabels.tsv")) {
@@ -407,25 +379,40 @@ namespace Nuvl
         while ((line = file.ReadLine()) != null) {
           ++nLines;
           if (nLines % 100000 == 0)
-            System.Console.Out.Write("\rN propertyInLabels lines " + nLines);
+            Console.Out.Write("\rN propertyEnLabels lines " + nLines);
 
           var splitLine = line.Split(new char[] { '\t' });
           var id = Int32.Parse(splitLine[0]);
           // TODO: unescape the Json value.
           propertyEnLabels_[id] = splitLine[1];
         }
-        System.Console.Out.WriteLine("");
+        Console.Out.WriteLine("");
+      }
+
+      using (var file = new StreamReader(@"c:\temp\propertyDatatype.tsv")) {
+        var nLines = 0;
+        string line;
+        while ((line = file.ReadLine()) != null) {
+          ++nLines;
+          if (nLines % 100000 == 0)
+            Console.Out.Write("\rN propertyDatatype lines " + nLines);
+
+          var splitLine = line.Split(new char[] { '\t' });
+          var id = Int32.Parse(splitLine[0]);
+          propertyDatatype_[id] = splitLine[1];
+        }
+        Console.Out.WriteLine("");
       }
 
       loadPropertyFromDump(@"c:\temp\instanceOf.tsv", Item.setInstanceOf, "instance of");
       loadPropertyFromDump(@"c:\temp\subclassOf.tsv", Item.setSubclassOf, "subclass of");
       loadPropertyFromDump(@"c:\temp\partOf.tsv", Item.setPartOf, "part of");
 
-      System.Console.Out.Write("Finding instances, subclasses and parts ...");
+      Console.Out.Write("Finding instances, subclasses and parts ...");
       setHasInstanceHasSubclassAndHasPart();
-      System.Console.Out.WriteLine(" done.");
+      Console.Out.WriteLine(" done.");
 
-      System.Console.Out.WriteLine("Load elapsed " + (DateTime.Now - startTime));
+      Console.Out.WriteLine("Load elapsed " + (DateTime.Now - startTime));
     }
 
     private void loadPropertyFromDump
@@ -438,7 +425,7 @@ namespace Nuvl
         while ((line = file.ReadLine()) != null) {
           ++nLines;
           if (nLines % 100000 == 0)
-            System.Console.Out.Write("\rN " + propertyLabel + " lines " + nLines);
+            Console.Out.Write("\rN " + propertyLabel + " lines " + nLines);
 
           var splitLine = line.Split(new char[] { '\t' });
           var item = items_[Int32.Parse(splitLine[0])];
@@ -450,7 +437,7 @@ namespace Nuvl
           valueSet.CopyTo(values);
           setPropertyValues(item, values);
         }
-        System.Console.Out.WriteLine("");
+        Console.Out.WriteLine("");
       }
     }
 
@@ -501,9 +488,9 @@ namespace Nuvl
       if (match.Success)
         processItem(line, Int32.Parse(match.Groups[1].Value));
       else {
-        match = Regex.Match(line, "^{\"type\":\"property\",\"datatype\":\"[\\w-]+\",\"id\":\"P(\\d+)");
+        match = Regex.Match(line, "^{\"type\":\"property\",\"datatype\":\"([\\w-]+)\",\"id\":\"P(\\d+)");
         if (match.Success)
-          processProperty(line, Int32.Parse(match.Groups[1].Value));
+          processProperty(line, Int32.Parse(match.Groups[2].Value), match.Groups[1].Value);
         else
           throw new Exception
           ("Line " + nLines + " not an item or property: " + line.Substring(0, Math.Min(75, line.Length)));
@@ -535,8 +522,11 @@ namespace Nuvl
     }
 
     private void
-    processProperty(string line, int id)
+    processProperty(string line, int id, string datatype)
     {
+      // TODO: Make this part of the properties_ data structure.
+      System.IO.File.AppendAllText(@"c:\temp\propertyDatatype.tsv", id + "\t" + datatype + "\r\n");
+
       var enLabel = getEnLabel(line);
       if (propertyEnLabels_.ContainsKey(id))
         messages_.Add("Already have property P" + id + " \"" + propertyEnLabels_[id] + "\". Got \"" + enLabel + "\"");
@@ -664,6 +654,8 @@ namespace Nuvl
     public List<string> messages_ = new List<string>();
     public Dictionary<int, Item> items_ = new Dictionary<int, Item>();
     public Dictionary<int, string> propertyEnLabels_ = new Dictionary<int, string>();
+    // TODO: Make this part of a properties: data structure.
+    public Dictionary<int, string> propertyDatatype_ = new Dictionary<int, string>();
 
     private Dictionary<int, Item[]> cachedIndirectSubclassOf_ = new Dictionary<int, Item[]>();
     private Dictionary<int, Item[]> cachedHasDirectSubclass_ = new Dictionary<int, Item[]>();
