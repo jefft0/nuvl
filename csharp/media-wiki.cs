@@ -73,7 +73,7 @@ namespace Nuvl
 
     public void appendText(string pageTitle, string text)
     {
-      editHelper("appendText", pageTitle, text);
+      editHelper("appendtext", pageTitle, text);
     }
 
     /// <summary>
@@ -105,7 +105,7 @@ namespace Nuvl
 
           var responseJsonCode = client_.UploadString
             ("http://" + host_ + "/w/api.php?action=edit&format=json&title=" +
-             WebUtility.UrlEncode(pageTitle) + "&recreate&" + parameter + "=" +
+             WebUtility.UrlEncode(pageTitle) + "&bot&recreate&" + parameter + "=" +
              WebUtility.UrlEncode(text) + "&token=" + WebUtility.UrlEncode(edittoken), "");
           var responseJson = serializer.Deserialize<Dictionary<string, Object>>(responseJsonCode);
           var edit = (Dictionary<string, Object>)responseJson["edit"];
