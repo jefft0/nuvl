@@ -345,11 +345,13 @@ namespace Nuvl
       System.Console.Out.Write("Writing dump files ...");
       using (var file = new StreamWriter(@"c:\temp\itemEnLabels.tsv")) {
         foreach (var entry in items_)
+          // TODO: escape the Json value.
           file.WriteLine(entry.Key + "\t" + entry.Value.getEnLabel());
       }
 
       using (var file = new StreamWriter(@"c:\temp\propertyEnLabels.tsv")) {
         foreach (var entry in propertyEnLabels_)
+          // TODO: escape the Json value.
           file.WriteLine(entry.Key + "\t" + entry.Value);
       }
 
@@ -393,6 +395,7 @@ namespace Nuvl
           var splitLine = line.Split(new char[] { '\t' });
           var id = Int32.Parse(splitLine[0]);
           if (!items_.ContainsKey(id))
+            // TODO: unescape the Json value.
             items_[id] = new Wikidata.Item(id, splitLine[1]);
         }
         System.Console.Out.WriteLine("");
@@ -408,6 +411,7 @@ namespace Nuvl
 
           var splitLine = line.Split(new char[] { '\t' });
           var id = Int32.Parse(splitLine[0]);
+          // TODO: unescape the Json value.
           propertyEnLabels_[id] = splitLine[1];
         }
         System.Console.Out.WriteLine("");
@@ -578,10 +582,19 @@ namespace Nuvl
         return "";
 
       var iEnLabelStart = iEnStart + enPrefix.Length;
-      var iEndQuote = line.IndexOf('\"', iEnLabelStart);
-      if (iEndQuote < 0)
-        return "";
+      // Find the end quote, skipping escaped characters.
+      var quoteOrBackslash = new char[] { '\"', '\\' };
+      var iEndQuote = iEnLabelStart;
+      while (true) {
+        iEndQuote = line.IndexOfAny(quoteOrBackslash, iEndQuote);
+        if (line[iEndQuote] == '\"')
+          break;
+        else
+          // Backslash.
+          iEndQuote += 2;
+      }
 
+      // TODO: unescape the Json value.
       return line.Substring(iEnLabelStart, iEndQuote - iEnLabelStart);
     }
 
