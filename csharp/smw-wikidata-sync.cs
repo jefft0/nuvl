@@ -28,7 +28,7 @@ namespace Nuvl
 
     public static string getSmwType(string wikidataDatatype)
     {
-      if (wikidataDatatype == "wikibase-item")
+      if (wikidataDatatype == "wikibase-item" || wikidataDatatype == "wikibase-property")
         return "Page";
       else if (wikidataDatatype == "globe-coordinate")
         return "Geographic coordinate";
@@ -38,7 +38,6 @@ namespace Nuvl
         return "Date";
       else if (wikidataDatatype == "url")
         return "URL";
-      // TODO: wikibase-property?
       else
         // Includes string, monolingualtext, commonsMedia.
         return "Text";
