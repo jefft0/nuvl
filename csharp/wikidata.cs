@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Text.RegularExpressions;
+using System.Web.Script.Serialization;
 
 namespace Nuvl
 {
@@ -317,15 +318,19 @@ namespace Nuvl
 
       Console.Out.Write("Writing dump files ...");
       using (var file = new StreamWriter(@"c:\temp\itemEnLabels.tsv")) {
-        foreach (var entry in items_)
-          // TODO: escape the Json value.
-          file.WriteLine(entry.Key + "\t" + entry.Value.getEnLabel());
+        foreach (var entry in items_) {
+          // Json-encode the value, omitting surrounding quotes.
+          var jsonString = jsonSerializer_.Serialize(entry.Value.getEnLabel());
+          file.WriteLine(entry.Key + "\t" + jsonString.Substring(1, jsonString.Length - 2));
+        }
       }
 
       using (var file = new StreamWriter(@"c:\temp\propertyEnLabels.tsv")) {
-        foreach (var entry in propertyEnLabels_)
-          // TODO: escape the Json value.
-          file.WriteLine(entry.Key + "\t" + entry.Value);
+        foreach (var entry in propertyEnLabels_) {
+          // Json-encode the value, omitting surrounding quotes.
+          var jsonString = jsonSerializer_.Serialize(entry.Value);
+          file.WriteLine(entry.Key + "\t" + jsonString.Substring(1, jsonString.Length - 2));
+        }
       }
 
       dumpProperty(Item.getInstanceOf, @"c:\temp\instanceOf.tsv");
@@ -368,8 +373,8 @@ namespace Nuvl
           var splitLine = line.Split(new char[] { '\t' });
           var id = Int32.Parse(splitLine[0]);
           if (!items_.ContainsKey(id))
-            // TODO: unescape the Json value.
-            items_[id] = new Wikidata.Item(id, splitLine[1]);
+            // Decode the Json value.
+            items_[id] = new Wikidata.Item(id, jsonSerializer_.Deserialize<string>("\"" + splitLine[1] + "\""));
         }
         Console.Out.WriteLine("");
       }
@@ -384,8 +389,8 @@ namespace Nuvl
 
           var splitLine = line.Split(new char[] { '\t' });
           var id = Int32.Parse(splitLine[0]);
-          // TODO: unescape the Json value.
-          propertyEnLabels_[id] = splitLine[1];
+          // Decode the Json value.
+          propertyEnLabels_[id] = jsonSerializer_.Deserialize<string>("\"" + splitLine[1] + "\"");
         }
         Console.Out.WriteLine("");
       }
@@ -621,8 +626,10 @@ namespace Nuvl
           iEndQuote += 2;
       }
 
-      // TODO: unescape the Json value.
-      return line.Substring(iEnLabelStart, iEndQuote - iEnLabelStart);
+      // Include the surrounding quotes.
+      var jsonString = line.Substring(iEnLabelStart - 1, (iEndQuote - iEnLabelStart) + 2);
+      // Decode the Json value.
+      return jsonSerializer_.Deserialize<string>(jsonString);
     }
 
     private void addAllTransitivePropertyValues
@@ -705,5 +712,7 @@ namespace Nuvl
     private Dictionary<int, Item[]> cachedIndirectPartOf_ = new Dictionary<int, Item[]>();
     private Dictionary<int, Item[]> cachedHasDirectPart_ = new Dictionary<int, Item[]>();
     private Dictionary<int, Item[]> cachedHasIndirectPart_ = new Dictionary<int, Item[]>();
+
+    private static JavaScriptSerializer jsonSerializer_ = new JavaScriptSerializer();
   }
 }
