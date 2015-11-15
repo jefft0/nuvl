@@ -288,6 +288,7 @@ namespace Nuvl
 
       // TODO: Make this part of the properties_ data structure.
       System.IO.File.WriteAllText(@"c:\temp\propertyDatatype.tsv", "");
+      System.IO.File.WriteAllText(@"c:\temp\propertySubpropertyOf.tsv", "");
 
       var startTime = DateTime.Now;
       Console.Out.WriteLine(startTime);
@@ -403,6 +404,25 @@ namespace Nuvl
         }
         Console.Out.WriteLine("");
       }
+      using (var file = new StreamReader(@"c:\temp\propertySubpropertyOf.tsv")) {
+        var valueSet = new HashSet<int>();
+        var nLines = 0;
+        string line;
+        while ((line = file.ReadLine()) != null) {
+          ++nLines;
+          if (nLines % 100000 == 0)
+            Console.Out.Write("\rN propertySubpropertyOf lines " + nLines);
+
+          var splitLine = line.Split(new char[] { '\t' });
+          var id = Int32.Parse(splitLine[0]);
+
+          valueSet.Clear();
+          for (int i = 1; i < splitLine.Length; ++i)
+            valueSet.Add(Int32.Parse(splitLine[i]));
+          propertySubpropertyOf_[id] = setToArray(valueSet);
+        }
+        Console.Out.WriteLine("");
+      }
 
       loadPropertyFromDump(@"c:\temp\instanceOf.tsv", Item.setInstanceOf, "instance of");
       loadPropertyFromDump(@"c:\temp\subclassOf.tsv", Item.setSubclassOf, "subclass of");
@@ -433,9 +453,7 @@ namespace Nuvl
           valueSet.Clear();
           for (int i = 1; i < splitLine.Length; ++i)
             valueSet.Add(Int32.Parse(splitLine[i]));
-          var values = new int[valueSet.Count];
-          valueSet.CopyTo(values);
-          setPropertyValues(item, values);
+          setPropertyValues(item, setToArray(valueSet));
         }
         Console.Out.WriteLine("");
       }
@@ -526,6 +544,13 @@ namespace Nuvl
     {
       // TODO: Make this part of the properties_ data structure.
       System.IO.File.AppendAllText(@"c:\temp\propertyDatatype.tsv", id + "\t" + datatype + "\r\n");
+      var subpropertyOfSet = getPropertyValues(null, "subproperty of", line, 1647, true);
+      if (subpropertyOfSet != null) {
+        string subpropertyOfList = "";
+        foreach (var subpropertyOf in subpropertyOfSet)
+          subpropertyOfList += "\t" + subpropertyOf;
+        System.IO.File.AppendAllText(@"c:\temp\propertySubpropertyOf.tsv", id + subpropertyOfList + "\r\n");
+      }
 
       var enLabel = getEnLabel(line);
       if (propertyEnLabels_.ContainsKey(id))
@@ -534,24 +559,36 @@ namespace Nuvl
     }
 
     private HashSet<int>
-    getPropertyValues(Item item, string propertyName, string line, int propertyId)
+    getPropertyValues(Item item, string propertyName, string line, int propertyId, bool valueIsProperty)
     {
       var valueSet = new HashSet<int>();
 
       foreach (Match match in Regex.Matches
         (line, "\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P" + propertyId +
-               "\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":(\\d+)")) {
+        "\",\"datavalue\":{\"value\":{\"entity-type\":\"" + (valueIsProperty ? "property" : "item") + 
+        "\",\"numeric-id\":(\\d+)")) {
         var value = Int32.Parse(match.Groups[1].Value);
-        if (value != item.Id)
+        if (valueIsProperty)
+          // TODO: Check for property self reference.
           valueSet.Add(value);
-        else
-          messages_.Add("Item is " + propertyName + " itself: " + item);
+        else {
+          if (value != item.Id)
+            valueSet.Add(value);
+          else
+            messages_.Add("Item is " + propertyName + " itself: " + item);
+        }
       }
 
       if (valueSet.Count == 0)
         return null;
       else
         return valueSet;
+    }
+
+    private HashSet<int>
+    getPropertyValues(Item item, string propertyName, string line, int propertyId)
+    {
+      return getPropertyValues(item, propertyName, line, propertyId, false);
     }
 
     private static string
@@ -656,6 +693,7 @@ namespace Nuvl
     public Dictionary<int, string> propertyEnLabels_ = new Dictionary<int, string>();
     // TODO: Make this part of a properties: data structure.
     public Dictionary<int, string> propertyDatatype_ = new Dictionary<int, string>();
+    public Dictionary<int, int[]> propertySubpropertyOf_ = new Dictionary<int, int[]>();
 
     private Dictionary<int, Item[]> cachedIndirectSubclassOf_ = new Dictionary<int, Item[]>();
     private Dictionary<int, Item[]> cachedHasDirectSubclass_ = new Dictionary<int, Item[]>();
