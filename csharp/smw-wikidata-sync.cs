@@ -26,20 +26,20 @@ namespace Nuvl
         return -1;
     }
 
-    public static string getSmwType(string wikidataDatatype)
+    public static string getSmwType(Wikidata.Datatype datatype)
     {
-      if (wikidataDatatype == "wikibase-item" || wikidataDatatype == "wikibase-property")
+      if (datatype == Wikidata.Datatype.WikibaseItem || datatype == Wikidata.Datatype.WikibaseProperty)
         return "Page";
-      else if (wikidataDatatype == "globe-coordinate")
+      else if (datatype == Wikidata.Datatype.GlobeCoordinate)
         return "Geographic coordinate";
-      else if (wikidataDatatype == "quantity")
+      else if (datatype == Wikidata.Datatype.Quantity)
         return "Number";
-      else if (wikidataDatatype == "time")
+      else if (datatype == Wikidata.Datatype.Time)
         return "Date";
-      else if (wikidataDatatype == "url")
+      else if (datatype == Wikidata.Datatype.Url)
         return "URL";
       else
-        // Includes string, monolingualtext, commonsMedia.
+        // Includes String, MonolingualText, CommonsMedia.
         return "Text";
     }
   }

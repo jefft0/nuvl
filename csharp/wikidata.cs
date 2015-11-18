@@ -131,10 +131,40 @@ namespace Nuvl
       }
 
       public int[] subpropertyOf_ = null;
+      public Datatype datatype_ = Datatype.WikibaseItem;
       private string label_;
 
       public static ICollection<int> getSubpropertyOf(Property property) { return property.subpropertyOf_; }
       public static void setSubpropertyOf(Property property, int[] values) { property.subpropertyOf_ = values; }
+    }
+
+    public enum Datatype
+    {
+      WikibaseItem, WikibaseProperty, GlobeCoordinate, Quantity, Time, Url,
+      String, MonolingualText, CommonsMedia
+    }
+
+    public static readonly Dictionary<Datatype, string> DatatypeString = new Dictionary<Datatype, string> {
+      { Datatype.WikibaseItem, "wikibase-item" },
+      { Datatype.WikibaseProperty, "wikibase-property" },
+      { Datatype.GlobeCoordinate, "globe-coordinate" },
+      { Datatype.Quantity, "quantity" },
+      { Datatype.Time, "time" },
+      { Datatype.Url, "url" },
+      { Datatype.String, "string" },
+      { Datatype.MonolingualText, "monolingualtext" },
+      { Datatype.CommonsMedia, "commonsMedia" },
+    };
+
+    public static Datatype 
+    getDatatypeFromString(string datatypeString)
+    {
+      foreach (var entry in DatatypeString) {
+        if (entry.Value == datatypeString)
+          return entry.Key;
+      }
+
+      throw new Exception("Unrecognized Datatype string: " + datatypeString);
     }
 
     /// <summary>
@@ -305,9 +335,6 @@ namespace Nuvl
     {
       var nLines = 0;
 
-      // TODO: Make this part of the properties_ data structure.
-      System.IO.File.WriteAllText(@"c:\temp\propertyDatatype.tsv", "");
-
       var startTime = DateTime.Now;
       Console.Out.WriteLine(startTime);
       using (var file = new FileStream(gzipFilePath, FileMode.Open, FileAccess.Read)) {
@@ -355,6 +382,12 @@ namespace Nuvl
       dumpProperty(items_, Item.getPartOf, @"c:\temp\partOf.tsv");
 
       dumpProperty(properties_, Property.getSubpropertyOf, @"c:\temp\propertySubpropertyOf.tsv");
+
+      using (var file = new StreamWriter(@"c:\temp\propertyDatatype.tsv")) {
+        foreach (var entry in properties_)
+          file.WriteLine(entry.Key + "\t" + DatatypeString[entry.Value.datatype_]);
+      }
+
       Console.Out.WriteLine(" done.");
 
       Console.Out.Write("Finding instances, subclasses and parts ...");
@@ -426,7 +459,7 @@ namespace Nuvl
 
           var splitLine = line.Split(new char[] { '\t' });
           var id = Int32.Parse(splitLine[0]);
-          propertyDatatype_[id] = splitLine[1];
+          properties_[id].datatype_ = getDatatypeFromString(splitLine[1]);
         }
         Console.Out.WriteLine("");
       }
@@ -549,11 +582,8 @@ namespace Nuvl
     }
 
     private void
-    processProperty(string line, int id, string datatype)
+    processProperty(string line, int id, string datatypeString)
     {
-      // TODO: Make this part of the properties_ data structure.
-      System.IO.File.AppendAllText(@"c:\temp\propertyDatatype.tsv", id + "\t" + datatype + "\r\n");
-
       var enLabel = getEnLabel(line);
       if (enLabel == "")
         messages_.Add("No enLabel for property P" + id);
@@ -563,6 +593,7 @@ namespace Nuvl
       properties_[id] = property;
 
       property.subpropertyOf_ = setToArray(getPropertyValues(null, "subproperty of", line, 1647, true));
+      property.datatype_ = getDatatypeFromString(datatypeString);
     }
 
     private HashSet<int>
@@ -700,8 +731,6 @@ namespace Nuvl
     public List<string> messages_ = new List<string>();
     public Dictionary<int, Item> items_ = new Dictionary<int, Item>();
     public Dictionary<int, Property> properties_ = new Dictionary<int, Property>();
-    // TODO: Make this part of a properties: data structure.
-    public Dictionary<int, string> propertyDatatype_ = new Dictionary<int, string>();
 
     private Dictionary<int, Item[]> cachedIndirectSubclassOf_ = new Dictionary<int, Item[]>();
     private Dictionary<int, Item[]> cachedHasDirectSubclass_ = new Dictionary<int, Item[]>();
