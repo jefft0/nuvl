@@ -98,8 +98,6 @@ namespace Nuvl
         return EnLabelWithId;
       }
 
-      public delegate ICollection<int> GetPropertyValues(Item item);
-      public delegate void SetPropertyValues(Item item, int[] values);
       public static ICollection<int> getInstanceOf(Item item) { return item.instanceOf_; }
       public static void setInstanceOf(Item item, int[] values) { item.instanceOf_ = values; }
       public static ICollection<int> getHasInstance(Item item) { return item.hasInstance_; }
@@ -117,6 +115,23 @@ namespace Nuvl
       public delegate bool GetHasLoop(Item item);
       public static bool getHasSubclassOfLoop(Item item) { return item.hasSubclassOfLoop_; }
       public static bool getHasPartOfLoop(Item item) { return item.hasPartOfLoop_; }
+    }
+
+    public class Property
+    {
+      public Property(string enLabel)
+      {
+        label_ = enLabel;
+      }
+
+      public string
+      getEnLabel()
+      {
+        return label_;
+      }
+
+      public int[] subpropertyOf_ = null;
+      private string label_;
     }
 
     /// <summary>
@@ -326,16 +341,16 @@ namespace Nuvl
       }
 
       using (var file = new StreamWriter(@"c:\temp\propertyEnLabels.tsv")) {
-        foreach (var entry in propertyEnLabels_) {
+        foreach (var entry in properties_) {
           // Json-encode the value, omitting surrounding quotes.
-          var jsonString = jsonSerializer_.Serialize(entry.Value);
+          var jsonString = jsonSerializer_.Serialize(entry.Value.getEnLabel());
           file.WriteLine(entry.Key + "\t" + jsonString.Substring(1, jsonString.Length - 2));
         }
       }
 
-      dumpProperty(Item.getInstanceOf, @"c:\temp\instanceOf.tsv");
-      dumpProperty(Item.getSubclassOf, @"c:\temp\subclassOf.tsv");
-      dumpProperty(Item.getPartOf, @"c:\temp\partOf.tsv");
+      dumpProperty(items_, Item.getInstanceOf, @"c:\temp\instanceOf.tsv");
+      dumpProperty(items_, Item.getSubclassOf, @"c:\temp\subclassOf.tsv");
+      dumpProperty(items_, Item.getPartOf, @"c:\temp\partOf.tsv");
       Console.Out.WriteLine(" done.");
 
       Console.Out.Write("Finding instances, subclasses and parts ...");
@@ -343,10 +358,11 @@ namespace Nuvl
       Console.Out.WriteLine(" done.");
     }
 
-    private void dumpProperty(Item.GetPropertyValues getPropertyValues, string filePath)
+    private static void dumpProperty<T>
+      (Dictionary<int, T> dictionary, GetIntArray<T> getPropertyValues, string filePath)
     {
       using (var file = new StreamWriter(filePath)) {
-        foreach (var entry in items_) {
+        foreach (var entry in dictionary) {
           if (getPropertyValues(entry.Value) != null) {
             file.Write(entry.Key);
             foreach (var value in getPropertyValues(entry.Value))
@@ -389,8 +405,9 @@ namespace Nuvl
 
           var splitLine = line.Split(new char[] { '\t' });
           var id = Int32.Parse(splitLine[0]);
-          // Decode the Json value.
-          propertyEnLabels_[id] = jsonSerializer_.Deserialize<string>("\"" + splitLine[1] + "\"");
+          if (!properties_.ContainsKey(id))
+            // Decode the Json value.
+            properties_[id] = new Property(jsonSerializer_.Deserialize<string>("\"" + splitLine[1] + "\""));
         }
         Console.Out.WriteLine("");
       }
@@ -429,9 +446,9 @@ namespace Nuvl
         Console.Out.WriteLine("");
       }
 
-      loadPropertyFromDump(@"c:\temp\instanceOf.tsv", Item.setInstanceOf, "instance of");
-      loadPropertyFromDump(@"c:\temp\subclassOf.tsv", Item.setSubclassOf, "subclass of");
-      loadPropertyFromDump(@"c:\temp\partOf.tsv", Item.setPartOf, "part of");
+      loadPropertyFromDump(@"c:\temp\instanceOf.tsv", items_, Item.setInstanceOf, "instance of");
+      loadPropertyFromDump(@"c:\temp\subclassOf.tsv", items_, Item.setSubclassOf, "subclass of");
+      loadPropertyFromDump(@"c:\temp\partOf.tsv", items_, Item.setPartOf, "part of");
 
       Console.Out.Write("Finding instances, subclasses and parts ...");
       setHasInstanceHasSubclassAndHasPart();
@@ -440,8 +457,8 @@ namespace Nuvl
       Console.Out.WriteLine("Load elapsed " + (DateTime.Now - startTime));
     }
 
-    private void loadPropertyFromDump
-      (string filePath, Item.SetPropertyValues setPropertyValues, string propertyLabel)
+    private void loadPropertyFromDump<T>
+      (string filePath, Dictionary<int, T> dictionary, SetIntArray<T> setPropertyValues, string propertyLabel)
     {
       using (var file = new StreamReader(filePath)) {
         var valueSet = new HashSet<int>();
@@ -453,12 +470,12 @@ namespace Nuvl
             Console.Out.Write("\rN " + propertyLabel + " lines " + nLines);
 
           var splitLine = line.Split(new char[] { '\t' });
-          var item = items_[Int32.Parse(splitLine[0])];
+          var obj = dictionary[Int32.Parse(splitLine[0])];
 
           valueSet.Clear();
           for (int i = 1; i < splitLine.Length; ++i)
             valueSet.Add(Int32.Parse(splitLine[i]));
-          setPropertyValues(item, setToArray(valueSet));
+          setPropertyValues(obj, setToArray(valueSet));
         }
         Console.Out.WriteLine("");
       }
@@ -558,9 +575,11 @@ namespace Nuvl
       }
 
       var enLabel = getEnLabel(line);
-      if (propertyEnLabels_.ContainsKey(id))
-        messages_.Add("Already have property P" + id + " \"" + propertyEnLabels_[id] + "\". Got \"" + enLabel + "\"");
-      propertyEnLabels_[id] = enLabel;
+      if (enLabel == "")
+        messages_.Add("No enLabel for property P" + id);
+      if (properties_.ContainsKey(id))
+        messages_.Add("Already have property P" + id + " \"" + properties_[id] + "\". Got \"" + enLabel + "\"");
+      properties_[id] = new Property(enLabel);
     }
 
     private HashSet<int>
@@ -633,7 +652,7 @@ namespace Nuvl
     }
 
     private void addAllTransitivePropertyValues
-      (HashSet<Item> allPropertyValues, Item item, Item.GetPropertyValues getPropertyValues, Item.GetHasLoop getHasLoop)
+      (HashSet<Item> allPropertyValues, Item item, GetIntArray<Item> getPropertyValues, Item.GetHasLoop getHasLoop)
     {
       var propertyValues = getPropertyValues(item);
       if (propertyValues != null) {
@@ -649,7 +668,7 @@ namespace Nuvl
     }
 
     private Item[]
-    getPropertyValuesAsSortedItems(int id, Item.GetPropertyValues getPropertyValues)
+    getPropertyValuesAsSortedItems(int id, GetIntArray<Item> getPropertyValues)
     {
       Item item;
       if (!items_.TryGetValue(id, out item))
@@ -669,8 +688,8 @@ namespace Nuvl
       return result;
     }
 
-    private Item[] 
-    getIndirectPropertyValuesAsSortedItems(int id, Item.GetPropertyValues getPropertyValues, Item.GetHasLoop getHasLoop)
+    private Item[]
+    getIndirectPropertyValuesAsSortedItems(int id, GetIntArray<Item> getPropertyValues, Item.GetHasLoop getHasLoop)
     {
       Item item;
       if (!items_.TryGetValue(id, out item))
@@ -697,7 +716,7 @@ namespace Nuvl
 
     public List<string> messages_ = new List<string>();
     public Dictionary<int, Item> items_ = new Dictionary<int, Item>();
-    public Dictionary<int, string> propertyEnLabels_ = new Dictionary<int, string>();
+    public Dictionary<int, Property> properties_ = new Dictionary<int, Property>();
     // TODO: Make this part of a properties: data structure.
     public Dictionary<int, string> propertyDatatype_ = new Dictionary<int, string>();
     public Dictionary<int, int[]> propertySubpropertyOf_ = new Dictionary<int, int[]>();
@@ -714,5 +733,8 @@ namespace Nuvl
     private Dictionary<int, Item[]> cachedHasIndirectPart_ = new Dictionary<int, Item[]>();
 
     private static JavaScriptSerializer jsonSerializer_ = new JavaScriptSerializer();
+
+    public delegate void SetIntArray<T>(T obj, int[] values);
+    public delegate ICollection<int> GetIntArray<T>(T obj);
   }
 }
