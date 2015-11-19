@@ -7,7 +7,7 @@ using System.Web.Script.Serialization;
 
 namespace Nuvl
 {
-  class Wikidata
+  public class Wikidata
   {
     public class Item
     {
