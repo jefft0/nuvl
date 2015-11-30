@@ -57,12 +57,16 @@ namespace Nuvl
       private string text_;
     }
 
+    public Dictionary<string, Page>
+    getPages() { return pages_; }
+
     /// <summary>
     /// From the host MediaWiki, fetch the wiki page info with the pageTitle.
     /// </summary>
     /// <param name="pageTitle">The wiki page title.</param>
     /// <returns>A Page object with the wiki text and time stamp, or null if not found.</returns>
-    public Page fetchPage(string pageTitle)
+    public Page 
+    fetchPage(string pageTitle)
     {
       var jsonCode = client_.DownloadString
         ("http://" + host_ + "/w/api.php?action=query&prop=revisions&rvprop=content|timestamp&format=json&titles=" + 
@@ -86,12 +90,14 @@ namespace Nuvl
       return null;
     }
 
-    public void setText(string pageTitle, string text)
+    public void 
+    setText(string pageTitle, string text)
     {
       editHelper("text", pageTitle, text);
     }
 
-    public void appendText(string pageTitle, string text)
+    public void 
+    appendText(string pageTitle, string text)
     {
       editHelper("appendtext", pageTitle, text);
     }
@@ -100,7 +106,8 @@ namespace Nuvl
     /// Read the MediaWiki XML dump and Update the local list of pages with newer entries. 
     /// </summary>
     /// <param name="gzipFilePath">The path of the gzip XML dump.</param>
-    public void readXmlDump(string gzipFilePath)
+    public void 
+    readXmlDump(string gzipFilePath)
     {
       using (var file = new FileStream(gzipFilePath, FileMode.Open, FileAccess.Read)) {
         using (var gzip = new GZipStream(file, CompressionMode.Decompress)) {
@@ -144,7 +151,8 @@ namespace Nuvl
     /// <param name="parameter">The edit parameter such as "text" or "appendText".</param>
     /// <param name="pageTitle">The page title. This URL encodes the value.</param>
     /// <param name="text">The text. This URL encodes the value.</param>
-    private void editHelper(string parameter, string pageTitle, string text)
+    private void 
+    editHelper(string parameter, string pageTitle, string text)
     {
       int sleepMilliseconds = (int)(minEditMilliseconds_ - (getNowMilliseconds() - lastEditMilliseconds_));
       if (sleepMilliseconds > 0)
@@ -204,13 +212,15 @@ namespace Nuvl
       }
     }
 
-    private static double getNowMilliseconds()
+    private static double 
+    getNowMilliseconds()
     {
       return DateTime.Now.Ticks / 10000.0;
     }
 
     // Read pagesFilePath_ and set pages_.
-    private void readPages()
+    private void 
+    readPages()
     {
       pages_.Clear();
 
@@ -243,7 +253,8 @@ namespace Nuvl
     /// <summary>
     /// Save pages_ to pagesFilePath_ as Json.
     /// </summary>
-    private void writePages()
+    private void 
+    writePages()
     {
       using (var file = new StreamWriter(pagesFilePath_)) {
         // Start the dictionary.
@@ -269,7 +280,8 @@ namespace Nuvl
     /// </summary>
     /// <param name="value">The string to capitalize.</param>
     /// <returns>The capitalized string</returns>
-    private static string mediaWikiCapitalize(string value)
+    private static string 
+    mediaWikiCapitalize(string value)
     {
       string[] splitValue = value.Split(Colon);
       for (int i = 0; i < splitValue.Length; ++i)
