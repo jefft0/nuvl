@@ -135,9 +135,31 @@ namespace Nuvl
         (reason == null ? "" : "&reason=" + WebUtility.UrlEncode(reason)) +
         "&token=" + WebUtility.UrlEncode(deleteToken_), "");
       var responseJson = jsonSerializer_.Deserialize<Dictionary<string, Object>>(responseJsonCode);
+      if (!responseJson.ContainsKey("delete"))
+        throw new Exception("Bad delete result: " + responseJsonCode);
       var delete = (Dictionary<string, Object>)responseJson["delete"];
       if (!delete.ContainsKey("logid"))
-        throw new Exception("Bad delete result: No success logid");
+        throw new Exception("Bad delete result: " + responseJsonCode);
+    }
+
+    public void
+    movePage(string fromPageTitle, string toPageTitle, string reason)
+    {
+      if (host_ == null)
+        throw new Exception("Cannot access the page because host is null");
+
+      doEditDelay();
+
+      var responseJsonCode = client_.UploadString
+        ("http://" + host_ + "/w/api.php?action=move&format=json&from=" + WebUtility.UrlEncode(fromPageTitle) +
+        "&to=" + WebUtility.UrlEncode(toPageTitle) + (reason == null ? "" : "&reason=" + WebUtility.UrlEncode(reason)) +
+        "&noredirect&movetalk&ignorewarnings&token=" + WebUtility.UrlEncode(moveToken_), "");
+      var responseJson = jsonSerializer_.Deserialize<Dictionary<string, Object>>(responseJsonCode);
+      if (!responseJson.ContainsKey("move"))
+        throw new Exception("Bad delete result: " + responseJsonCode);
+      var move = (Dictionary<string, Object>)responseJson["move"];
+      if (!move.ContainsKey("from"))
+        throw new Exception("Bad delete result: " + responseJsonCode);
     }
 
     /// <summary>
