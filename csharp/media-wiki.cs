@@ -12,31 +12,49 @@ namespace Nuvl
 {
   public class MediaWiki
   {
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="host">The host of the MediaWiki site. If null, disable access to the site.</param>
+    /// <param name="userName"></param>
+    /// <param name="password"></param>
+    /// <param name="pagesFilePath"></param>
     public MediaWiki(string host, string userName, string password, string pagesFilePath)
     {
-      host_ = host;
       pagesFilePath_ = pagesFilePath;
 
-      client_ = new CookieAwareWebClient();
-      var login1JsonCode = client_.UploadString
-        ("http://" + host_ + "/w/api.php?action=login&format=json&lgname=" +
-         WebUtility.UrlEncode(userName) + "&lgpassword=" + WebUtility.UrlEncode(password), "");
+      if (host != null) {
+        // Log in.
+        host_ = host;
+        client_ = new CookieAwareWebClient();
+        var login1JsonCode = client_.UploadString
+          ("http://" + host_ + "/w/api.php?action=login&format=json&lgname=" +
+           WebUtility.UrlEncode(userName) + "&lgpassword=" + WebUtility.UrlEncode(password), "");
 
-      var serializer = new JavaScriptSerializer();
-      var login1Json = serializer.Deserialize<Dictionary<string, Object>>(login1JsonCode);
-      var login1 = (Dictionary<string, Object>)login1Json["login"];
-      var loginToken = (string)login1["token"];
+        var login1Json = jsonSerializer_.Deserialize<Dictionary<string, Object>>(login1JsonCode);
+        var login1 = (Dictionary<string, Object>)login1Json["login"];
+        var loginToken = (string)login1["token"];
 
-      var login2JsonCode = client_.UploadString
-        ("http://" + host_ + "/w/api.php?action=login&format=json&lgname=" + 
-         WebUtility.UrlEncode(userName) + "&lgpassword=" + WebUtility.UrlEncode(password) + 
-         "&lgtoken=" + WebUtility.UrlEncode(loginToken), "");
-      var login2Json = serializer.Deserialize<Dictionary<string, Object>>(login2JsonCode);
-      var login2 = (Dictionary<string, Object>)login2Json["login"];
-      var result = (string)login2["result"];
+        var login2JsonCode = client_.UploadString
+          ("http://" + host_ + "/w/api.php?action=login&format=json&lgname=" +
+           WebUtility.UrlEncode(userName) + "&lgpassword=" + WebUtility.UrlEncode(password) +
+           "&lgtoken=" + WebUtility.UrlEncode(loginToken), "");
+        var login2Json = jsonSerializer_.Deserialize<Dictionary<string, Object>>(login2JsonCode);
+        var login2 = (Dictionary<string, Object>)login2Json["login"];
+        var result = (string)login2["result"];
 
-      if (result != "Success")
-        throw new Exception("Bad login result: " + result);
+        if (result != "Success")
+          throw new Exception("Bad login result: " + result);
+
+        // Get the modify tokens.
+        var tokenJsonCode = client_.DownloadString
+          ("http://" + host_ + "/w/api.php?action=tokens&type=edit|move|delete&format=json");
+        var tokenJson = jsonSerializer_.Deserialize<Dictionary<string, Object>>(tokenJsonCode);
+        var tokens = (Dictionary<string, Object>)tokenJson["tokens"];
+        editToken_ = (string)tokens["edittoken"];
+        moveToken_ = (string)tokens["movetoken"];
+        deleteToken_ = (string)tokens["deletetoken"];
+      }
 
       readPages();
     }
@@ -68,12 +86,14 @@ namespace Nuvl
     public Page 
     fetchPage(string pageTitle)
     {
+      if (host_ == null)
+        throw new Exception("Cannot access the page because host is null");
+
       var jsonCode = client_.DownloadString
         ("http://" + host_ + "/w/api.php?action=query&prop=revisions&rvprop=content|timestamp&format=json&titles=" + 
          WebUtility.UrlEncode(pageTitle));
 
-      var serializer = new JavaScriptSerializer();
-      var json = serializer.Deserialize<Dictionary<string, Object>>(jsonCode);
+      var json = jsonSerializer_.Deserialize<Dictionary<string, Object>>(jsonCode);
       var query = (Dictionary<string, Object>)json["query"];
       var pages = (Dictionary<string, Object>)query["pages"];
       // Use a loop to get the first entry.
@@ -102,12 +122,30 @@ namespace Nuvl
       editHelper("appendtext", pageTitle, text);
     }
 
+    public void
+    deletePage(string pageTitle, string reason)
+    {
+      if (host_ == null)
+        throw new Exception("Cannot access the page because host is null");
+
+      doEditDelay();
+
+      var responseJsonCode = client_.UploadString
+        ("http://" + host_ + "/w/api.php?action=delete&format=json&title=" + WebUtility.UrlEncode(pageTitle) +
+        (reason == null ? "" : "&reason=" + WebUtility.UrlEncode(reason)) +
+        "&token=" + WebUtility.UrlEncode(deleteToken_), "");
+      var responseJson = jsonSerializer_.Deserialize<Dictionary<string, Object>>(responseJsonCode);
+      var delete = (Dictionary<string, Object>)responseJson["delete"];
+      if (!delete.ContainsKey("logid"))
+        throw new Exception("Bad delete result: No success logid");
+    }
+
     /// <summary>
     /// Read the MediaWiki XML dump and Update the local list of pages with newer entries. 
     /// </summary>
     /// <param name="gzipFilePath">The path of the gzip XML dump.</param>
     public void 
-    readXmlDump(string gzipFilePath)
+    mergeXmlDump(string gzipFilePath)
     {
       using (var file = new FileStream(gzipFilePath, FileMode.Open, FileAccess.Read)) {
         using (var gzip = new GZipStream(file, CompressionMode.Decompress)) {
@@ -144,6 +182,31 @@ namespace Nuvl
       writePages();
     }
 
+    /// <summary>
+    /// Capitalize the first string and each substring following a colon.
+    /// </summary>
+    /// <param name="value">The string to capitalize.</param>
+    /// <returns>The capitalized string</returns>
+    public static string
+    mediaWikiCapitalize(string value)
+    {
+      string[] splitValue = value.Split(Colon);
+      for (int i = 0; i < splitValue.Length; ++i)
+        splitValue[i] = splitValue[i].Substring(0, 1).ToUpper() + splitValue[i].Substring(1);
+
+      return String.Join(":", splitValue);
+    }
+
+    /// <summary>
+    /// Sleep as needed to make sure there are minEditMilliseconds_ from the last edit.
+    /// </summary>
+    private void doEditDelay()
+    {
+      int sleepMilliseconds = (int)(minEditMilliseconds_ - (getNowMilliseconds() - lastEditMilliseconds_));
+      if (sleepMilliseconds > 0)
+        Thread.Sleep(sleepMilliseconds);
+      lastEditMilliseconds_ = getNowMilliseconds();
+    }
 
     /// <summary>
     /// Get the edit token for pageTitle, then send the edit command with the editParameters
@@ -151,45 +214,24 @@ namespace Nuvl
     /// <param name="parameter">The edit parameter such as "text" or "appendText".</param>
     /// <param name="pageTitle">The page title. This URL encodes the value.</param>
     /// <param name="text">The text. This URL encodes the value.</param>
-    private void 
+    private void
     editHelper(string parameter, string pageTitle, string text)
     {
-      int sleepMilliseconds = (int)(minEditMilliseconds_ - (getNowMilliseconds() - lastEditMilliseconds_));
-      if (sleepMilliseconds > 0)
-        Thread.Sleep(sleepMilliseconds);
-      lastEditMilliseconds_ = getNowMilliseconds();
+      if (host_ == null)
+        throw new Exception("Cannot access the page because host is null");
 
-      var tokenJsonCode = client_.DownloadString
-        ("http://" + host_ + 
-         "/w/api.php?action=query&prop=info|revisions&intoken=edit&rvprop=timestamp&format=json&titles=" + 
-         WebUtility.UrlEncode(pageTitle));
-      var serializer = new JavaScriptSerializer();
-      var tokenJson = serializer.Deserialize<Dictionary<string, Object>>(tokenJsonCode);
-      var query = (Dictionary<string, Object>)tokenJson["query"];
-      var pages = (Dictionary<string, Object>)query["pages"];
-      string edittoken = "";
-      // Use a loop to get the first entry.
-      foreach (Dictionary<string, Object> page in pages.Values) {
-        if (page.ContainsKey("edittoken")) {
-          edittoken = ((string)page["edittoken"]);
+      doEditDelay();
 
-          var responseJsonCode = client_.UploadString
-            ("http://" + host_ + "/w/api.php?action=edit&format=json&title=" +
-             WebUtility.UrlEncode(pageTitle) + "&bot&recreate&" + parameter + "=" +
-             WebUtility.UrlEncode(text) + "&token=" + WebUtility.UrlEncode(edittoken), "");
-          var responseJson = serializer.Deserialize<Dictionary<string, Object>>(responseJsonCode);
-          var edit = (Dictionary<string, Object>)responseJson["edit"];
-          var result = (string)edit["result"];
+      var responseJsonCode = client_.UploadString
+        ("http://" + host_ + "/w/api.php?action=edit&format=json&title=" +
+         WebUtility.UrlEncode(pageTitle) + "&bot&recreate&" + parameter + "=" +
+         WebUtility.UrlEncode(text) + "&token=" + WebUtility.UrlEncode(editToken_), "");
+      var responseJson = jsonSerializer_.Deserialize<Dictionary<string, Object>>(responseJsonCode);
+      var edit = (Dictionary<string, Object>)responseJson["edit"];
+      var result = (string)edit["result"];
 
-          if (result != "Success")
-            throw new Exception("Bad edit result: " + result);
-          return;
-        }
-
-        break;
-      }
-
-      throw new Exception("Can't get page data.");
+      if (result != "Success")
+        throw new Exception("Bad edit result: " + result);
     }
 
     private class CookieAwareWebClient : WebClient
@@ -275,25 +317,13 @@ namespace Nuvl
       }
     }
 
-    /// <summary>
-    /// Capitalize the first string and each substring following a colon.
-    /// </summary>
-    /// <param name="value">The string to capitalize.</param>
-    /// <returns>The capitalized string</returns>
-    private static string 
-    mediaWikiCapitalize(string value)
-    {
-      string[] splitValue = value.Split(Colon);
-      for (int i = 0; i < splitValue.Length; ++i)
-        splitValue[i] = splitValue[i].Substring(0, 1).ToUpper() + splitValue[i].Substring(1);
-
-      return String.Join(":", splitValue);
-    }
-
-    private string host_;
+    private string host_ = null;
     private string pagesFilePath_;
     private WebClient client_;
     private double lastEditMilliseconds_ = 0;
+    private string editToken_;
+    private string moveToken_;
+    private string deleteToken_;
     private Dictionary<string, Page> pages_ = new Dictionary<string, Page>();
 
     private const double minEditMilliseconds_ = 2000;
