@@ -89,6 +89,7 @@
       this.MinimizeBox = false;
       this.Name = "QueryDialog";
       this.Text = "Question";
+      this.TopMost = true;
       this.ResumeLayout(false);
       this.PerformLayout();
 
