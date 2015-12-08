@@ -3,14 +3,92 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Text.RegularExpressions;
+using System.Windows.Forms;
 
 namespace Nuvl
 {
   public class SmwWikidataSync
   {
-    public SmwWikidataSync(string host, string userName, string password, string pagesFilePath)
+    public SmwWikidataSync(Wikidata wikidata, string host, string userName, string password, string pagesFilePath)
     {
+      wikidata_ = wikidata;
       mediaWiki_ = new MediaWiki(host, userName, password, pagesFilePath);
+
+      resyncPageInfo();
+    }
+
+    public class PageInfo
+    {
+      public int itemId_;
+      public int propertyId_;
+    }
+
+    
+    /// <summary>
+    /// Read the MediaWiki XML dump and Update the local list of pages with newer entries. 
+    /// </summary>
+    /// <param name="gzipFilePath">The path of the gzip XML dump.</param>
+    public void
+    mergeXmlDump(string gzipFilePath) { mediaWiki_.mergeXmlDump(gzipFilePath); }
+
+    public void
+    syncProperties()
+    {
+      try {
+        var renamedProperties = new List<string[]>();
+        var question = "Rename the following properties?\r\n";
+
+        // Do moves first in case a property ID was renamed to a new name, but a new property was
+        // created with the old name.
+        foreach (var entry in wikidata_.properties_) {
+          string expectedTitle = "Property:" + MediaWiki.mediaWikiNormalize(entry.Value.getEnLabel());
+          string propertyIdPageTitle;
+          if (propertyIdPageTitle_.TryGetValue(entry.Key, out propertyIdPageTitle)) {
+            if (propertyIdPageTitle != expectedTitle) {
+              renamedProperties.Add(new string[] { propertyIdPageTitle, expectedTitle });
+              question += "P" + entry.Key + " " + propertyIdPageTitle + " -> " + expectedTitle + "\r\n";
+            }
+          }
+        }
+
+        if (renamedProperties.Count > 0) {
+          if (MessageBox.Show(question, "Rename properties?", MessageBoxButtons.YesNo) != DialogResult.Yes)
+            return;
+
+          foreach (var entry in renamedProperties) {
+            // Debug: First mediawiki_.fetchPage to see if the page was already moved.
+            Console.Out.WriteLine("Rename " + entry[0] + " -> " + entry[1]);
+            mediaWiki_.movePage(entry[0], entry[1], "Renamed in Wikidata");
+          }
+
+          resyncPageInfo();
+        }
+
+        // Now look for new properties.
+        foreach (var entry in wikidata_.properties_) {
+          string expectedTitle = "Property:" + MediaWiki.mediaWikiNormalize(entry.Value.getEnLabel());
+          string propertyIdPageTitle;
+          if (!propertyIdPageTitle_.TryGetValue(entry.Key, out propertyIdPageTitle)) {
+            Console.Out.WriteLine("New in Wikidata: " + expectedTitle);
+            // Debug: First mediawiki_.fetchPage to see if the page was already created.
+            mediaWiki_.setText(expectedTitle, getPropertyText(entry.Key));
+          }
+        }
+
+        // TODO: Check for changed text.
+      }
+      finally {
+        resyncPageInfo();
+      }
+    }
+
+    /// <summary>
+    /// Clear pageInfo_ and propertyIdPageTitle_, then set them from mediaWiki_.getPages().
+    /// </summary>
+    private void resyncPageInfo()
+    {
+      pageInfo_.Clear();
+      propertyIdPageTitle_.Clear();
 
       foreach (var entry in mediaWiki_.getPages()) {
         var pageInfo = new PageInfo();
@@ -34,18 +112,34 @@ namespace Nuvl
         }
         else {
           if (pageInfo.propertyId_ > 0)
-          throw new Exception
-            ("Property ID " + pageInfo.propertyId_ + " in non-property page " + entry.Key);
+            throw new Exception
+              ("Property ID " + pageInfo.propertyId_ + " in non-property page " + entry.Key);
         }
 
         pageInfo_[entry.Key] = pageInfo;
       }
     }
 
-    public class PageInfo
+    /// <summary>
+    /// Get the SMW text for wikidata_.properties_[propertyId].
+    /// </summary>
+    /// <param name="propertyId">The wikidata property ID.</param>
+    /// <returns>The SMW text.</returns>
+    private string
+    getPropertyText(int propertyId)
     {
-      public int itemId_;
-      public int propertyId_;
+      var property = wikidata_.properties_[propertyId];
+
+      var text = "{{WikidataProperty|" + propertyId + "}}\n[[has type::" + getSmwType(property.datatype_) + "| ]]\n";
+      if (property.subpropertyOf_ != null) {
+        foreach (var subpropertyOf in property.subpropertyOf_) {
+          // TODO: Check for subproperty loops.
+          if (wikidata_.properties_.ContainsKey(subpropertyOf))
+            text += "[[subproperty of::" + wikidata_.properties_[subpropertyOf].getEnLabel() + "| ]]\n";
+        }
+      }
+
+      return text;
     }
 
     /// <summary>
@@ -110,8 +204,9 @@ namespace Nuvl
         return "Text";
     }
 
-    /* debug private */ public MediaWiki mediaWiki_;
+    private Wikidata wikidata_;
+    private MediaWiki mediaWiki_;
     private Dictionary<string, PageInfo> pageInfo_ = new Dictionary<string, PageInfo>();
-    public Dictionary<int, string> propertyIdPageTitle_ = new Dictionary<int, string>();
+    private Dictionary<int, string> propertyIdPageTitle_ = new Dictionary<int, string>();
   }
 }
