@@ -110,16 +110,29 @@ namespace Nuvl
       return null;
     }
 
-    public void 
+    /// <summary>
+    /// Get the edit token for pageTitle, then send the edit command with the editParameters
+    /// </summary>
+    /// <param name="pageTitle">The page title. This URL encodes the value.</param>
+    /// <param name="text">The text. This URL encodes the value.</param>
+    public void
     setText(string pageTitle, string text)
     {
-      editHelper("text", pageTitle, text);
-    }
+      if (host_ == null)
+        throw new Exception("Cannot access the page because host is null");
 
-    public void 
-    appendText(string pageTitle, string text)
-    {
-      editHelper("appendtext", pageTitle, text);
+      doEditDelay();
+
+      var responseJsonCode = client_.UploadString
+        ("http://" + host_ + "/w/api.php?action=edit&format=json&title=" +
+         WebUtility.UrlEncode(pageTitle) + "&bot&recreate&text=" +
+         WebUtility.UrlEncode(text) + "&token=" + WebUtility.UrlEncode(editToken_), "");
+      var responseJson = jsonSerializer_.Deserialize<Dictionary<string, Object>>(responseJsonCode);
+      var edit = (Dictionary<string, Object>)responseJson["edit"];
+      var result = (string)edit["result"];
+
+      if (result != "Success")
+        throw new Exception("Bad edit result: " + result);
     }
 
     public void
@@ -228,32 +241,6 @@ namespace Nuvl
       if (sleepMilliseconds > 0)
         Thread.Sleep(sleepMilliseconds);
       lastEditMilliseconds_ = getNowMilliseconds();
-    }
-
-    /// <summary>
-    /// Get the edit token for pageTitle, then send the edit command with the editParameters
-    /// </summary>
-    /// <param name="parameter">The edit parameter such as "text" or "appendText".</param>
-    /// <param name="pageTitle">The page title. This URL encodes the value.</param>
-    /// <param name="text">The text. This URL encodes the value.</param>
-    private void
-    editHelper(string parameter, string pageTitle, string text)
-    {
-      if (host_ == null)
-        throw new Exception("Cannot access the page because host is null");
-
-      doEditDelay();
-
-      var responseJsonCode = client_.UploadString
-        ("http://" + host_ + "/w/api.php?action=edit&format=json&title=" +
-         WebUtility.UrlEncode(pageTitle) + "&bot&recreate&" + parameter + "=" +
-         WebUtility.UrlEncode(text) + "&token=" + WebUtility.UrlEncode(editToken_), "");
-      var responseJson = jsonSerializer_.Deserialize<Dictionary<string, Object>>(responseJsonCode);
-      var edit = (Dictionary<string, Object>)responseJson["edit"];
-      var result = (string)edit["result"];
-
-      if (result != "Success")
-        throw new Exception("Bad edit result: " + result);
     }
 
     private class CookieAwareWebClient : WebClient
