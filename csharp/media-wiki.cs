@@ -123,7 +123,7 @@ namespace Nuvl
 
       doEditDelay();
 
-      pageTitle = mediaWikiCapitalize(pageTitle);
+      pageTitle = mediaWikiNormalize(pageTitle);
       var responseJsonCode = client_.UploadString
         ("http://" + host_ + "/w/api.php?action=edit&format=json&title=" +
          WebUtility.UrlEncode(pageTitle) + "&bot&recreate&text=" +
@@ -148,7 +148,7 @@ namespace Nuvl
 
       doEditDelay();
 
-      pageTitle = mediaWikiCapitalize(pageTitle);
+      pageTitle = mediaWikiNormalize(pageTitle);
       var responseJsonCode = client_.UploadString
         ("http://" + host_ + "/w/api.php?action=delete&format=json&title=" + WebUtility.UrlEncode(pageTitle) +
         (reason == null ? "" : "&reason=" + WebUtility.UrlEncode(reason)) +
@@ -173,8 +173,8 @@ namespace Nuvl
 
       doEditDelay();
 
-      fromPageTitle = mediaWikiCapitalize(fromPageTitle);
-      toPageTitle = mediaWikiCapitalize(toPageTitle);
+      fromPageTitle = mediaWikiNormalize(fromPageTitle);
+      toPageTitle = mediaWikiNormalize(toPageTitle);
       var responseJsonCode = client_.UploadString
         ("http://" + host_ + "/w/api.php?action=move&format=json&from=" + WebUtility.UrlEncode(fromPageTitle) +
         "&to=" + WebUtility.UrlEncode(toPageTitle) + (reason == null ? "" : "&reason=" + WebUtility.UrlEncode(reason)) +
@@ -184,10 +184,14 @@ namespace Nuvl
         throw new Exception("Bad delete result: " + responseJsonCode);
       var move = (Dictionary<string, Object>)responseJson["move"];
       if (!move.ContainsKey("from"))
-        throw new Exception("Bad delete result: " + responseJsonCode);
+        throw new Exception("Bad move result: " + responseJsonCode);
 
       // Update the local cache.
+#if false
       pages_[toPageTitle] = pages_[fromPageTitle];
+#else // debug: Does the XML dump have the timestamp of the move? See "Property:NIOSH Pocket Guide ID".
+      pages_[toPageTitle] = new Page(getUtcNow(), pages_[fromPageTitle].getText());
+#endif
       pages_.Remove(fromPageTitle);
       writePages();
     }
@@ -205,7 +209,7 @@ namespace Nuvl
             while (reader.ReadToFollowing("page")) {
               using (var page = reader.ReadSubtree()) {
                 page.ReadToFollowing("title");
-                var title = mediaWikiCapitalize(page.ReadElementContentAsString());
+                var title = mediaWikiNormalize(page.ReadElementContentAsString());
 
                 // Get the timestamp and text of the last revision.
                 DateTime utcTimeStamp = new DateTime();
@@ -225,6 +229,8 @@ namespace Nuvl
                 else
                   // A new page.
                   pages_[title] = new Page(utcTimeStamp, text);
+
+                // Debug: Check for deleted in the XML dump.
               }
             }
           }
@@ -235,18 +241,23 @@ namespace Nuvl
     }
 
     /// <summary>
-    /// Capitalize the first string and each substring following a colon.
+    /// Normalize a MediaWiki page title as follows: Capitalize the first string and each substring 
+    /// following a colon, change underscore to space, and change multiple spaces to one space.
     /// </summary>
-    /// <param name="value">The string to capitalize.</param>
-    /// <returns>The capitalized string</returns>
+    /// <param name="value">The string to normalize.</param>
+    /// <returns>The normalized string</returns>
     public static string
-    mediaWikiCapitalize(string value)
+    mediaWikiNormalize(string value)
     {
       string[] splitValue = value.Split(Colon);
       for (int i = 0; i < splitValue.Length; ++i)
         splitValue[i] = splitValue[i].Substring(0, 1).ToUpper() + splitValue[i].Substring(1);
 
-      return String.Join(":", splitValue);
+      var result = String.Join(":", splitValue);
+      result = result.Replace("_", " ");
+      result = multipleSpaces_.Replace(result, " ");
+
+      return result;
     }
 
     /// <summary>
@@ -365,5 +376,6 @@ namespace Nuvl
     private const double minEditMilliseconds_ = 2000;
     private static JavaScriptSerializer jsonSerializer_ = new JavaScriptSerializer();
     private static char[] Colon = new char[] { ':' };
+    private static Regex multipleSpaces_ = new Regex("\\s+");
   }
 }
