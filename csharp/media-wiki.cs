@@ -123,6 +123,7 @@ namespace Nuvl
 
       doEditDelay();
 
+      pageTitle = mediaWikiCapitalize(pageTitle);
       var responseJsonCode = client_.UploadString
         ("http://" + host_ + "/w/api.php?action=edit&format=json&title=" +
          WebUtility.UrlEncode(pageTitle) + "&bot&recreate&text=" +
@@ -133,6 +134,10 @@ namespace Nuvl
 
       if (result != "Success")
         throw new Exception("Bad edit result: " + result);
+
+      // Update the local cache.
+      pages_[pageTitle] = new Page(getUtcNow(), text);
+      writePages();
     }
 
     public void
@@ -143,6 +148,7 @@ namespace Nuvl
 
       doEditDelay();
 
+      pageTitle = mediaWikiCapitalize(pageTitle);
       var responseJsonCode = client_.UploadString
         ("http://" + host_ + "/w/api.php?action=delete&format=json&title=" + WebUtility.UrlEncode(pageTitle) +
         (reason == null ? "" : "&reason=" + WebUtility.UrlEncode(reason)) +
@@ -153,6 +159,10 @@ namespace Nuvl
       var delete = (Dictionary<string, Object>)responseJson["delete"];
       if (!delete.ContainsKey("logid"))
         throw new Exception("Bad delete result: " + responseJsonCode);
+
+      // Update the local cache.
+      pages_.Remove(pageTitle);
+      writePages();
     }
 
     public void
@@ -163,6 +173,8 @@ namespace Nuvl
 
       doEditDelay();
 
+      fromPageTitle = mediaWikiCapitalize(fromPageTitle);
+      toPageTitle = mediaWikiCapitalize(toPageTitle);
       var responseJsonCode = client_.UploadString
         ("http://" + host_ + "/w/api.php?action=move&format=json&from=" + WebUtility.UrlEncode(fromPageTitle) +
         "&to=" + WebUtility.UrlEncode(toPageTitle) + (reason == null ? "" : "&reason=" + WebUtility.UrlEncode(reason)) +
@@ -173,6 +185,11 @@ namespace Nuvl
       var move = (Dictionary<string, Object>)responseJson["move"];
       if (!move.ContainsKey("from"))
         throw new Exception("Bad delete result: " + responseJsonCode);
+
+      // Update the local cache.
+      pages_[toPageTitle] = pages_[fromPageTitle];
+      pages_.Remove(fromPageTitle);
+      writePages();
     }
 
     /// <summary>
@@ -263,7 +280,13 @@ namespace Nuvl
       }
     }
 
-    private static double 
+    private static DateTime
+    getUtcNow()
+    {
+      return DateTime.Now.ToUniversalTime();
+    }
+
+    private static double
     getNowMilliseconds()
     {
       return DateTime.Now.Ticks / 10000.0;
@@ -307,7 +330,8 @@ namespace Nuvl
     private void 
     writePages()
     {
-      using (var file = new StreamWriter(pagesFilePath_)) {
+      var tempPagesFilePath = pagesFilePath_ + ".temp";
+      using (var file = new StreamWriter(tempPagesFilePath)) {
         // Start the dictionary.
         file.WriteLine("{");
 
@@ -324,6 +348,9 @@ namespace Nuvl
         // Finish the dictionary.
         file.WriteLine("}");
       }
+
+      File.Delete(pagesFilePath_);
+      File.Move(tempPagesFilePath, pagesFilePath_);
     }
 
     private string host_ = null;
