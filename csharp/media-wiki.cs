@@ -69,6 +69,10 @@ namespace Nuvl
 
       public DateTime getUtcTimeStamp() { return utcTimeStamp_; }
 
+      /// <summary>
+      /// Get the page text.
+      /// </summary>
+      /// <returns>The page text, or null if it has been deleted.</returns>
       public string getText() { return text_; }
 
       private DateTime utcTimeStamp_;
@@ -161,7 +165,7 @@ namespace Nuvl
         throw new Exception("Bad delete result: " + responseJsonCode);
 
       // Update the local cache.
-      pages_.Remove(pageTitle);
+      pages_[pageTitle] = new Page(getUtcNow(), null);
       writePages();
     }
 
@@ -192,7 +196,7 @@ namespace Nuvl
 #else // debug: Does the XML dump have the timestamp of the move? See "Property:NIOSH Pocket Guide ID".
       pages_[toPageTitle] = new Page(getUtcNow(), pages_[fromPageTitle].getText());
 #endif
-      pages_.Remove(fromPageTitle);
+      pages_[fromPageTitle] = new Page(getUtcNow(), null);
       writePages();
     }
 

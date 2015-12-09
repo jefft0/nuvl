@@ -91,6 +91,10 @@ namespace Nuvl
       propertyIdPageTitle_.Clear();
 
       foreach (var entry in mediaWiki_.getPages()) {
+        if (entry.Value.getText() == null)
+          // The page is deleted.
+          continue;
+
         var pageInfo = new PageInfo();
         pageInfo.itemId_ = getItemId(entry.Value.getText(), entry.Key);
         pageInfo.propertyId_ = getPropertyId(entry.Value.getText(), entry.Key);
