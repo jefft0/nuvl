@@ -13,20 +13,21 @@ namespace Nuvl
   public class MediaWiki
   {
     /// <summary>
-    /// 
+    /// Create a MediaWiki to manage a local cache of the remote MediaWiki, and optionally log in to
+    /// make modifications.
     /// </summary>
-    /// <param name="host">The host of the MediaWiki site. If null, disable access to the site.</param>
-    /// <param name="userName"></param>
-    /// <param name="password"></param>
-    /// <param name="pagesFilePath"></param>
+    /// <param name="host">The host of the MediaWiki site..</param>
+    /// <param name="userName">The login user name. If null, don't log in, and disable modification.</param>
+    /// <param name="password">The login password. If null, don't log in, and disable modification.</param>
+    /// <param name="pagesFilePath">The file path of the local cache of pages.</param>
     public MediaWiki(string host, string userName, string password, string pagesFilePath)
     {
       pagesFilePath_ = pagesFilePath;
+      host_ = host;
 
-      if (host != null) {
+      client_ = new CookieAwareWebClient();
+      if (userName != null && password != null) {
         // Log in.
-        host_ = host;
-        client_ = new CookieAwareWebClient();
         var login1JsonCode = client_.UploadString
           ("http://" + host_ + "/w/api.php?action=login&format=json&lgname=" +
            WebUtility.UrlEncode(userName) + "&lgpassword=" + WebUtility.UrlEncode(password), "");
@@ -90,9 +91,6 @@ namespace Nuvl
     public Page 
     fetchPage(string pageTitle)
     {
-      if (host_ == null)
-        throw new Exception("Cannot access the page because host is null");
-
       var jsonCode = client_.DownloadString
         ("http://" + host_ + "/w/api.php?action=query&prop=revisions&rvprop=content|timestamp&format=json&titles=" + 
          WebUtility.UrlEncode(pageTitle));
@@ -122,8 +120,8 @@ namespace Nuvl
     public void
     setText(string pageTitle, string text)
     {
-      if (host_ == null)
-        throw new Exception("Cannot access the page because host is null");
+      if (editToken_ == null)
+        throw new Exception("Cannot access the page because not logged in");
 
       doEditDelay();
 
@@ -147,8 +145,8 @@ namespace Nuvl
     public void
     deletePage(string pageTitle, string reason)
     {
-      if (host_ == null)
-        throw new Exception("Cannot access the page because host is null");
+      if (deleteToken_ == null)
+        throw new Exception("Cannot access the page because not logged in");
 
       doEditDelay();
 
@@ -172,8 +170,8 @@ namespace Nuvl
     public void
     movePage(string fromPageTitle, string toPageTitle, string reason)
     {
-      if (host_ == null)
-        throw new Exception("Cannot access the page because host is null");
+      if (moveToken_ == null)
+        throw new Exception("Cannot access the page because not logged in");
 
       doEditDelay();
 
@@ -226,13 +224,17 @@ namespace Nuvl
                 }
 
                 if (pages_.ContainsKey(title)) {
-                  if (utcTimeStamp > pages_[title].getUtcTimeStamp())
+                  if (utcTimeStamp > pages_[title].getUtcTimeStamp()) {
                     // Update to the newer page.
+                    Console.Out.WriteLine("Updating from the XML dump: " + title);
                     pages_[title] = new Page(utcTimeStamp, text);
+                  }
                 }
-                else
+                else {
                   // A new page.
+                  Console.Out.WriteLine("Adding from the XML dump: " + title);
                   pages_[title] = new Page(utcTimeStamp, text);
+                }
 
                 // Debug: Check for deleted in the XML dump.
               }
@@ -372,9 +374,9 @@ namespace Nuvl
     private string pagesFilePath_;
     private WebClient client_;
     private double lastEditMilliseconds_ = 0;
-    private string editToken_;
-    private string moveToken_;
-    private string deleteToken_;
+    private string editToken_ = null;
+    private string moveToken_ = null;
+    private string deleteToken_ = null;
     private Dictionary<string, Page> pages_ = new Dictionary<string, Page>();
 
     private const double minEditMilliseconds_ = 2000;
