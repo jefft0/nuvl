@@ -6,11 +6,11 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-// Dictionary<day, SortedDictionary<time, Dictionary<cameraNumber, blobName>>>.
-using VideoInventory = System.Collections.Generic.Dictionary<System.DateTime, System.Collections.Generic.SortedDictionary<System.TimeSpan, System.Collections.Generic.Dictionary<int, string>>>;
-
 namespace StoreBlobs
 {
+  // Dictionary<day, SortedDictionary<time, Dictionary<cameraNumber, new BlobNameAndType(blobName, contentType)>>>.
+  using VideoInventory = Dictionary<DateTime, SortedDictionary<TimeSpan, Dictionary<int, BlobNameAndType>>>;
+
   class StoreBlobs
   {
     static void
@@ -66,15 +66,16 @@ namespace StoreBlobs
         int camera;
         DateTime date;
         TimeSpan time;
-        if (!parseCameraFileName(fileInfo.Name, out camera, out date, out time))
+        string fileExtension;
+        if (!parseCameraFileName(fileInfo.Name, out camera, out date, out time, out fileExtension))
           continue;
         if ((date + time) >= startOfHour)
           // Skip videos being recorded this hour.
           continue;
 
-        SortedDictionary<TimeSpan, Dictionary<int, string>> timeSet;
+        SortedDictionary<TimeSpan, Dictionary<int, BlobNameAndType>> timeSet;
         if (videoInventory.TryGetValue(date, out timeSet)) {
-          Dictionary<int, string> cameraSet;
+          Dictionary<int, BlobNameAndType> cameraSet;
           if (timeSet.TryGetValue(time, out cameraSet)) {
             if (cameraSet.ContainsKey(camera))
               // Already stored the video.
@@ -179,13 +180,14 @@ namespace StoreBlobs
     }
 
     static bool
-    parseCameraFileName(string filePath, out int camera, out DateTime date, out TimeSpan time)
+    parseCameraFileName(string filePath, out int camera, out DateTime date, out TimeSpan time, out string fileExtension)
     {
       var match = cameraFileNameRegex_.Match(Path.GetFileName(filePath));
       if (!match.Success) {
         camera = 0;
         date = new DateTime();
         time = new TimeSpan();
+        fileExtension = null;
         return false;
       }
 
@@ -199,6 +201,7 @@ namespace StoreBlobs
 
       date = new DateTime(year, month, day);
       time = new TimeSpan(hour, minute, second);
+      fileExtension = match.Groups[8].Value;
 
       return true;
     }
@@ -215,22 +218,23 @@ namespace StoreBlobs
         int camera;
         DateTime date;
         TimeSpan time;
-        if (!parseCameraFileName(filePath, out camera, out date, out time))
+        string fileExtension;
+        if (!parseCameraFileName(filePath, out camera, out date, out time, out fileExtension))
           continue;
 
-        SortedDictionary<TimeSpan, Dictionary<int, string>> timeSet;
+        SortedDictionary<TimeSpan, Dictionary<int, BlobNameAndType>> timeSet;
         if (!result.TryGetValue(date, out timeSet)) {
-          timeSet = new SortedDictionary<TimeSpan, Dictionary<int, string>>();
+          timeSet = new SortedDictionary<TimeSpan, Dictionary<int, BlobNameAndType>>();
           result[date] = timeSet;
         }
 
-        Dictionary<int, string> cameraSet;
+        Dictionary<int, BlobNameAndType> cameraSet;
         if (!timeSet.TryGetValue(time, out cameraSet)) {
-          cameraSet = new Dictionary<int, string>();
+          cameraSet = new Dictionary<int, BlobNameAndType>();
           timeSet[time] = cameraSet;
         }
 
-        cameraSet[camera] = blobName;
+        cameraSet[camera] = new BlobNameAndType(blobName, contentTypes_[fileExtension]);
       }
 
       return result;
@@ -250,7 +254,7 @@ namespace StoreBlobs
       var monthName = firstOfMonth.ToString("MMMM");
 
       // Get the days for the month.
-      var daySet = new Dictionary<int, SortedDictionary<TimeSpan, Dictionary<int, string>>>();
+      var daySet = new Dictionary<int, SortedDictionary<TimeSpan, Dictionary<int, BlobNameAndType>>>();
       foreach (var entry in videoInventory) {
         if (entry.Key.Year == year && entry.Key.Month == month)
           daySet[entry.Key.Day] = entry.Value;
@@ -311,7 +315,7 @@ namespace StoreBlobs
 @"      <td style=""vertical-align: top;""><a name=""" + day + @"""/><b>" + day + @"</b><br>
 ");
 
-            SortedDictionary<TimeSpan, Dictionary<int, string>> timeSet;
+            SortedDictionary<TimeSpan, Dictionary<int, BlobNameAndType>> timeSet;
             if (daySet.TryGetValue(day, out timeSet))
               // Only show the table if there are videos for today.
               writeDayVideosTable(file, timeSet);
@@ -336,7 +340,7 @@ namespace StoreBlobs
       return filePath;
     }
 
-    static void writeDayVideosTable(StreamWriter file, SortedDictionary<TimeSpan, Dictionary<int, string>> timeSet)
+    static void writeDayVideosTable(StreamWriter file, SortedDictionary<TimeSpan, Dictionary<int, BlobNameAndType>> timeSet)
     {
       var cameraBackgroundColor = new string[] { 
         "", "", "", "rgb(255, 255, 255);", "rgb(255, 255, 204);", "rgb(255, 204, 204);", "rgb(204, 255, 255);"};
@@ -363,12 +367,13 @@ namespace StoreBlobs
         file.WriteLine(@"            <td style=""vertical-align: top; background-color: " +
           cameraBackgroundColor[camera] + @""">");
         foreach (var entry in timeSet) {
-          string blobName;
-          if (!entry.Value.TryGetValue(camera, out blobName))
+          BlobNameAndType blobNameAndType;
+          if (!entry.Value.TryGetValue(camera, out blobNameAndType))
             // No video for the camera at this time.
             file.WriteLine("              <br>");
           else
-            file.WriteLine(@"              <a href=""" + blobNameToUri(blobName, "video/mp4") + @""">" +
+            file.WriteLine(@"              <a href=""" +
+              blobNameToUri(blobNameAndType.BlobName, blobNameAndType.ContentType) + @""">" +
               entry.Key.Hours.ToString("D2") + ":" + entry.Key.Minutes.ToString("D2") +
               (entry.Key.Seconds != 0 ? ":" + entry.Key.Seconds.ToString("D2") : "") + "</a><br>");
         }
@@ -553,7 +558,7 @@ Start Firefox and drag ni-protocol.xpi into Firefox. Follow the instructions and
 Videos for today, " + today.ToString("d MMMM, yyyy") + @":<br>
 ");
 
-        SortedDictionary<TimeSpan, Dictionary<int, string>> timeSet;
+        SortedDictionary<TimeSpan, Dictionary<int, BlobNameAndType>> timeSet;
         if (!videoInventory.TryGetValue(today, out timeSet))
           file.WriteLine("(no videos yet)<br>");
         else
@@ -609,7 +614,6 @@ Videos for today, " + today.ToString("d MMMM, yyyy") + @":<br>
       return result.ToString();
     }
 
-
     static string publicFilePath_ = @"C:\public";
     static string blobsFilePath_ = Path.Combine(publicFilePath_, "blobs");
     static string inventoryFilePath_ = Path.Combine(blobsFilePath_, "inventory.tsv");
@@ -618,6 +622,24 @@ Videos for today, " + today.ToString("d MMMM, yyyy") + @":<br>
     static string oneDriveInventoryFilePath_ = Path.Combine(oneDriveBlobsFilePath_, "inventory.tsv");
     static string tempDirectoryPath_ = @"C:\temp";
     static string videosIndexPagePath_ = tempDirectoryPath_ + @"\videos-index.html";
-    static Regex cameraFileNameRegex_ = new Regex("^camera(\\d{1})\\.(\\d{4})(\\d{2})(\\d{2})_(\\d{2})(\\d{2})(\\d{2})\\.mp4$");
+    static Regex cameraFileNameRegex_ = new Regex("^camera(\\d{1})\\.(\\d{4})(\\d{2})(\\d{2})_(\\d{2})(\\d{2})(\\d{2})\\.(mp4|avi)$");
+    // The key is a filename extension like "mp4". The value is a content type like "video/mp4".
+    static Dictionary<string, string> contentTypes_ = new Dictionary<string, string>() { { "mp4", "video/mp4" }, { "avi", "video/avi" } };
+  }
+
+  /// <summary>
+  /// A BlobNameAndType has a blob name like "sha256-2nLdZ2oWoNcUqMK1blUpaZf1aIHSVMTGR7afLeyiOmo"
+  /// and a content type like "video/mp4".
+  /// </summary>
+  class BlobNameAndType
+  {
+    public BlobNameAndType(string blobName, string contentType)
+    {
+      BlobName = blobName;
+      ContentType = contentType;
+    }
+
+    public readonly string BlobName;
+    public readonly string ContentType;
   }
 }
