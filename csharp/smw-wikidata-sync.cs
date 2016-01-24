@@ -41,7 +41,7 @@ namespace Nuvl
         // Do moves first in case a property ID was renamed to a new name, but a new property was
         // created with the old name.
         foreach (var entry in wikidata_.properties_) {
-          string expectedTitle = "Property:" + MediaWiki.mediaWikiNormalize(entry.Value.getEnLabel());
+          string expectedTitle = "Property:" + MediaWiki.mediaWikiNormalize(entry.Value.getEnLabelOrId());
           string propertyIdPageTitle;
           if (propertyIdPageTitle_.TryGetValue(entry.Key, out propertyIdPageTitle)) {
             if (propertyIdPageTitle != expectedTitle) {
@@ -66,7 +66,7 @@ namespace Nuvl
 
         // Now look for new properties.
         foreach (var entry in wikidata_.properties_) {
-          string expectedTitle = "Property:" + MediaWiki.mediaWikiNormalize(entry.Value.getEnLabel());
+          string expectedTitle = "Property:" + MediaWiki.mediaWikiNormalize(entry.Value.getEnLabelOrId());
           string propertyIdPageTitle;
           if (!propertyIdPageTitle_.TryGetValue(entry.Key, out propertyIdPageTitle)) {
             Console.Out.WriteLine("New in Wikidata: " + expectedTitle);
@@ -139,7 +139,7 @@ namespace Nuvl
         foreach (var subpropertyOf in property.subpropertyOf_) {
           // TODO: Check for subproperty loops.
           if (wikidata_.properties_.ContainsKey(subpropertyOf))
-            text += "[[subproperty of::" + wikidata_.properties_[subpropertyOf].getEnLabel() + "| ]]\n";
+            text += "[[subproperty of::" + wikidata_.properties_[subpropertyOf].getEnLabelOrId() + "| ]]\n";
         }
       }
 
