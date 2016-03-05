@@ -149,7 +149,7 @@ namespace Nuvl
     public enum Datatype
     {
       WikibaseItem, WikibaseProperty, GlobeCoordinate, Quantity, Time, Url,
-      String, MonolingualText, CommonsMedia
+      String, MonolingualText, CommonsMedia, ExternalIdentifier
     }
 
     public static readonly Dictionary<Datatype, string> DatatypeString = new Dictionary<Datatype, string> {
@@ -162,6 +162,7 @@ namespace Nuvl
       { Datatype.String, "string" },
       { Datatype.MonolingualText, "monolingualtext" },
       { Datatype.CommonsMedia, "commonsMedia" },
+      { Datatype.ExternalIdentifier, "external-id" }
     };
 
     public static Datatype 
