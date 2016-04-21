@@ -2,8 +2,10 @@ import std.string;
 import std.typecons;
 import std.algorithm.sorting;
 
-string 
-neg(string literal) pure 
+alias string Literal;
+
+Literal 
+neg(Literal literal) pure 
 { 
   if (startsWith(literal, "~"))
     return literal[1..$];
@@ -12,13 +14,13 @@ neg(string literal) pure
 }
 
 bool
-isAssumption(string literal) pure
+isAssumption(Literal literal) pure
 {
   return startsWith(literal, "@") || startsWith(literal, "~@");
 }
 
 string
-literalString(string literal) pure
+literalString(Literal literal) pure
 {
   if (literal.indexOf(" ") >= 0 || literal.indexOf("->") >= 0) {
     if (literal[0] == '~')
@@ -85,7 +87,7 @@ removeRepeats(T)(T[] array) pure
 }
 
 class Rule {
-  this(string consequent, immutable string[] antecedents) pure immutable
+  this(Literal consequent, immutable Literal[] antecedents) pure immutable
   {
     this.consequent = consequent;
     if (isSortedSet(antecedents))
@@ -94,11 +96,11 @@ class Rule {
       auto newAntecedents = antecedents.dup;
       sort(newAntecedents);
       newAntecedents.length = removeRepeats(newAntecedents);
-      this.antecedents = cast(immutable string[])newAntecedents;
+      this.antecedents = cast(immutable Literal[])newAntecedents;
     }
   }
   
-  this(string consequent, string antecedent) pure immutable
+  this(string consequent, Literal antecedent) pure immutable
   {
     this.consequent = consequent;
     this.antecedents = [antecedent];
@@ -145,6 +147,9 @@ class Rule {
     return equals(other);
   }
 
+  /**
+   * The result is not sorted.
+   */
   Rebindable!(immutable(Rule))[]
   transpositions() pure const
   {
@@ -152,20 +157,22 @@ class Rule {
     for (auto i = 0; i < antecedents.length; ++i) {
       auto newAntecedents = antecedents.dup;
       newAntecedents[i] = neg(consequent);
-      sort(newAntecedents);
 
+      // Sort now so that the Rule constructor doesn't have to.
+      sort(newAntecedents);
       result[i] = new immutable Rule(neg(antecedents[i]), cast(immutable string[])newAntecedents);
     }
 
-    sort(result);
-    result.length = removeRepeats(result);
     return result;
   }
   
-  string consequent;
-  string[] antecedents;
+  Literal consequent;
+  Literal[] antecedents;
 }
 
+/**
+ * The result is not sorted.
+ */
 Rebindable!(immutable(Rule))[]
 transitiveClosure(const Rule[] rules) pure
 {
@@ -175,7 +182,5 @@ transitiveClosure(const Rule[] rules) pure
       result ~= x;
   }
 
-  sort(result);
-  result.length = removeRepeats(result);
   return result;
 }
