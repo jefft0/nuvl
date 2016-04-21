@@ -54,26 +54,33 @@ isSortedSet(T)(const T[] array) pure
   return true;
 }
 
+bool equals(string a, string b) pure { return a == b; }
+bool equals(T)(const T a, const T b) pure { return a.equals(b); }
+
+/** Modify the array to remove repeated elements and return the new
+ * length of the array.
+ */
 int
-removeRepeats(T)(T[] array)
+removeRepeats(T)(T[] array) pure
 {
   if (array.length <= 1)
     // Nothing to do.
     return array.length;
-
+  
   auto iPrevious = 0;
   auto iTo = 1;
   for (auto iFrom = 1; iFrom < array.length; ++iFrom) {
-    if (array[iFrom] == array[iPrevious])
+    // Use our own equals to get around "Cannot call impure opEquals".
+    if (equals(array[iFrom], array[iPrevious]))
       continue;
-
+    
     if (iTo != iFrom)
       array[iTo] = array[iFrom];
 
     iPrevious = iTo;
     ++iTo;
   }
-
+  
   return iTo;
 }
 
@@ -86,8 +93,7 @@ class Rule {
     else {
       auto newAntecedents = antecedents.dup;
       sort(newAntecedents);
-      removeRepeats(newAntecedents);
-      // TODO: Remove duplicates.
+      newAntecedents.length = removeRepeats(newAntecedents);
       this.antecedents = cast(immutable string[])newAntecedents;
     }
   }
@@ -126,12 +132,17 @@ class Rule {
     return 0;
   }
 
+  bool equals(const Rule other) const pure
+  {
+    return consequent == other.consequent && antecedents == other.antecedents; 
+  }
+
   override bool opEquals(Object o) pure
   {
     auto other = cast(Rule)o;
     if (other is null)
       return false;
-    return consequent == other.consequent && antecedents == other.antecedents; 
+    return equals(other);
   }
 
   Rebindable!(immutable(Rule))[]
@@ -147,7 +158,7 @@ class Rule {
     }
 
     sort(result);
-    // TODO: Remove duplicates.
+    result.length = removeRepeats(result);
     return result;
   }
   
@@ -165,6 +176,6 @@ transitiveClosure(const Rule[] rules) pure
   }
 
   sort(result);
-  // TODO: Remove duplicates.
+  result.length = removeRepeats(result);
   return result;
 }
