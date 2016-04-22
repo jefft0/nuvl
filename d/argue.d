@@ -82,8 +82,17 @@ removeRepeats(T)(T[] array) pure
     iPrevious = iTo;
     ++iTo;
   }
-  
+
   return iTo;
+}
+
+T[]
+makeSortedSet(T)(immutable T[] array) pure
+{
+  auto result = array.dup;
+  sort(result);
+  result.length = removeRepeats(result);
+  return result;
 }
 
 class Rule {
@@ -92,12 +101,8 @@ class Rule {
     this.consequent = consequent;
     if (isSortedSet(antecedents))
       this.antecedents = antecedents;
-    else {
-      auto newAntecedents = antecedents.dup;
-      sort(newAntecedents);
-      newAntecedents.length = removeRepeats(newAntecedents);
-      this.antecedents = cast(immutable Literal[])newAntecedents;
-    }
+    else
+      this.antecedents = makeSortedSet(antecedents);
   }
   
   this(string consequent, Literal antecedent) pure immutable
@@ -151,16 +156,20 @@ class Rule {
    * The result is not sorted.
    */
   Rebindable!(immutable(Rule))[]
-  transpositions() pure const
+  transpositions() pure immutable
   {
     auto result = new Rebindable!(immutable(Rule))[antecedents.length];
     for (auto i = 0; i < antecedents.length; ++i) {
-      auto newAntecedents = antecedents.dup;
-      newAntecedents[i] = neg(consequent);
+      // Use a function literal so the assignment to immutable works.
+      immutable Literal[] newAntecedents = function(immutable Rule rule, int i) {
+        auto newAntecedents = rule.antecedents.dup;
+        newAntecedents[i] = neg(rule.consequent);
 
-      // Sort now so that the Rule constructor doesn't have to.
-      sort(newAntecedents);
-      result[i] = new immutable Rule(neg(antecedents[i]), cast(immutable string[])newAntecedents);
+        // Sort now so that the Rule constructor doesn't have to.
+        sort(newAntecedents);
+        return newAntecedents;
+      }(this, i);
+      result[i] = new immutable Rule(neg(antecedents[i]), newAntecedents);
     }
 
     return result;
@@ -177,8 +186,8 @@ Rebindable!(immutable(Rule))[]
 transitiveClosure(const Rule[] rules) pure
 {
   auto result = new Rebindable!(immutable(Rule))[0];
-  foreach (rule; rules) {
-    foreach (x; rule.transpositions())
+  for (auto i = 0; i < result.length; ++i) {
+    foreach (x; result[i].transpositions())
       result ~= x;
   }
 
