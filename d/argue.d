@@ -183,11 +183,11 @@ class Rule {
  * The result is not sorted.
  */
 Rebindable!(immutable(Rule))[]
-transitiveClosure(const Rule[] rules) pure
+transitiveClosure(immutable Rule[] rules) pure
 {
   auto result = new Rebindable!(immutable(Rule))[0];
-  for (auto i = 0; i < result.length; ++i) {
-    foreach (x; result[i].transpositions())
+  for (auto i = 0; i < rules.length; ++i) {
+    foreach (x; rules[i].transpositions())
       result ~= x;
   }
 
