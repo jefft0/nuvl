@@ -11,6 +11,22 @@ namespace StoreBlobs
   // Dictionary<day, SortedDictionary<time, Dictionary<cameraNumber, new BlobNameAndType(blobName, contentType)>>>.
   using VideoInventory = Dictionary<DateTime, SortedDictionary<TimeSpan, Dictionary<int, BlobNameAndType>>>;
 
+  class VideoFile
+  {
+    public VideoFile(string filePath, DateTime day, TimeSpan time, int cameraNumber)
+    {
+      FilePath = filePath;
+      Day = day;
+      Time = time;
+      CameraNumber = cameraNumber;
+    }
+
+    public readonly string FilePath;
+    public readonly DateTime Day;
+    public readonly TimeSpan Time;
+    public readonly int CameraNumber;
+  }
+
   class StoreBlobs
   {
     static void
@@ -48,7 +64,7 @@ namespace StoreBlobs
       writeMainIndexPage(fileInventory, videoInventory, now);
       // Sanity check the inventory file size.
       if (new FileInfo(inventoryFilePath_).Length < initialInventorySize)
-        Console.Out.WriteLine
+        throw new Exception
           ("ERROR: The inventory file has gotten smaller and may have been overwritten.");
       else
         // Back up the inventory file.
