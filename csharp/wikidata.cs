@@ -119,19 +119,27 @@ namespace Nuvl
 
     public class Property
     {
-      public Property(string enLabel)
+      public Property(int id, string enLabel)
       {
+        Id = id;
         label_ = enLabel;
       }
 
       public string
-      getEnLabel()
+      getEnLabel() { return label_; }
+
+      public string
+      getEnLabelOrId()
       {
-        return label_;
+        if (label_.Length == 0)
+          return "P" + Id;
+        else
+          return label_;
       }
 
       public int[] subpropertyOf_ = null;
       public Datatype datatype_ = Datatype.WikibaseItem;
+      public readonly int Id;
       private string label_;
 
       public static ICollection<int> getSubpropertyOf(Property property) { return property.subpropertyOf_; }
@@ -141,7 +149,7 @@ namespace Nuvl
     public enum Datatype
     {
       WikibaseItem, WikibaseProperty, GlobeCoordinate, Quantity, Time, Url,
-      String, MonolingualText, CommonsMedia
+      String, MonolingualText, CommonsMedia, ExternalIdentifier, MathematicalExpression
     }
 
     public static readonly Dictionary<Datatype, string> DatatypeString = new Dictionary<Datatype, string> {
@@ -154,6 +162,8 @@ namespace Nuvl
       { Datatype.String, "string" },
       { Datatype.MonolingualText, "monolingualtext" },
       { Datatype.CommonsMedia, "commonsMedia" },
+      { Datatype.ExternalIdentifier, "external-id" },
+      { Datatype.MathematicalExpression, "math" }
     };
 
     public static Datatype 
@@ -444,7 +454,7 @@ namespace Nuvl
           var id = Int32.Parse(splitLine[0]);
           if (!properties_.ContainsKey(id))
             // Decode the Json value.
-            properties_[id] = new Property(jsonSerializer_.Deserialize<string>("\"" + splitLine[1] + "\""));
+            properties_[id] = new Property(id, jsonSerializer_.Deserialize<string>("\"" + splitLine[1] + "\""));
         }
         Console.Out.WriteLine("");
       }
@@ -589,7 +599,7 @@ namespace Nuvl
         messages_.Add("No enLabel for property P" + id);
       if (properties_.ContainsKey(id))
         messages_.Add("Already have property P" + id + " \"" + properties_[id] + "\". Got \"" + enLabel + "\"");
-      var property = new Property(enLabel);
+      var property = new Property(id, enLabel);
       properties_[id] = property;
 
       property.subpropertyOf_ = setToArray(getPropertyValues(null, "subproperty of", line, 1647, true));
