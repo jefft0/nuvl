@@ -32,120 +32,69 @@ namespace StoreBlobs
     static void
     Main(string[] args)
     {
-#if false // Debug all done!
+#if false // from blobs
       var fileInventory0 = readBlobFileInventory();
       var videoInventory0 = getCameraVideoInventory(fileInventory0);
 
-      // Count.
-      var nVideos = 0;
+      var debugAllBlobs = new Dictionary<string, string>();
+      var debugAllBlobYears = new Dictionary<string, int>();
+      var duplicates2013 = new Dictionary<string, object>();
+
       foreach (var dayEntry in videoInventory0) {
         foreach (var timeEntry in dayEntry.Value) {
-          foreach (var cameraEntry in timeEntry.Value)
-            ++nVideos;
+          foreach (var cameraEntry in timeEntry.Value) {
+            debugAllBlobYears[cameraEntry.Value.BlobName] = dayEntry.Key.Year;
+            string prefix = cameraEntry.Value.BlobName.Substring(0, 11);
+            if (debugAllBlobs.ContainsKey(prefix)) {
+              if (debugAllBlobYears[debugAllBlobs[prefix]] == 2013)
+                duplicates2013[debugAllBlobs[prefix]] = null;
+              if (debugAllBlobYears[cameraEntry.Value.BlobName] == 2013)
+                duplicates2013[cameraEntry.Value.BlobName] = null;
+            }
+            debugAllBlobs[prefix] = cameraEntry.Value.BlobName;
+          }
         }
       }
 
-      var videoNumber = 0;
-      foreach (var dayEntry in videoInventory0) {
-        var day = dayEntry.Key;
+      using (var file = new StreamWriter(@"c:\temp\temp.bat")) {
+        foreach (var dayEntry in videoInventory0) {
+          var day = dayEntry.Key;
+          if (day.Year != 2013)
+            continue;
 
-        foreach (var timeEntry in dayEntry.Value) {
-          var time = timeEntry.Key;
+          foreach (var timeEntry in dayEntry.Value) {
+            var time = timeEntry.Key;
 
-          foreach (var cameraEntry in timeEntry.Value) {
-            ++videoNumber;
+            foreach (var cameraEntry in timeEntry.Value) {
+              var cameraNumber = cameraEntry.Key;
+              var blobName = cameraEntry.Value.BlobName;
+              if (duplicates2013.ContainsKey(blobName))
+                continue;
 
-            // We'll finish the line below
-            Console.Out.Write(videoNumber + " of " + nVideos + ": ");
+              var base64 = blobName.Substring(7);
+              var blobFileSubPath = @"sha256\" +
+                blobUpperBang(base64.Substring(0, 2)) + @"\" +
+                blobUpperBang(base64.Substring(2, 2));
+              var blobFileDirectory = Path.Combine(oneDriveBlobsDirectoryPath_, blobFileSubPath);
 
-            var cameraNumber = cameraEntry.Key;
-            var blobName = cameraEntry.Value.BlobName;
-
-            var base64 = blobName.Substring(7);
-            var blobFileSubPath = @"sha256\" +
-              blobUpperBang(base64.Substring(0, 2)) + @"\" +
-              blobUpperBang(base64.Substring(2, 2));
-            var blobFileDirectory = Path.Combine(blobsDirectoryPath_, blobFileSubPath);
-            var blobFilePath = Path.Combine(blobFileDirectory, blobUpperBang(blobName) + ".dat");
-
-            var toDirectory = getPublicCamerasDirectoryPath(day);
-            if (!Directory.Exists(toDirectory))
-              Directory.CreateDirectory(toDirectory);
-            var toFilePath = Path.Combine(toDirectory, "camera" + cameraNumber + "." + 
-              day.ToString("yyyyMMdd") + "_" + time.ToString("hhmmss") + ".mp4");
-
-            if (videoNumber < 60500) { // camera3.20140518_060006
-              Console.Out.WriteLine("skip " + toFilePath);
-              continue;
+              file.WriteLine("rmdir /S /Q " + blobFileDirectory);
             }
-
-            File.Move(blobFilePath, toFilePath);
-
-            Console.Out.WriteLine(toFilePath);
           }
         }
       }
       if (true) return;
 #endif
-#if true
-      var fileInventory0 = readBlobFileInventory();
-      var videoInventory0 = getCameraVideoInventory(fileInventory0);
 
-      // Count.
-      var fromDirectory = @"N:\BlueIris\New";
-      var nVideos = 0;
-      foreach (var fileInfo in new DirectoryInfo(fromDirectory).GetFiles()) {
-        int camera;
-        DateTime date;
-        TimeSpan time;
-        string fileExtension;
-        if (!parseCameraFileName(fileInfo.Name, out camera, out date, out time, out fileExtension))
-          continue;
-        if (fileExtension != "mp4")
-          continue;
-
-        ++nVideos;
-      }
-
-      var videoNumber = 0;
-      foreach (var fileInfo in new DirectoryInfo(fromDirectory).GetFiles()) {
-        int cameraNumber;
-        DateTime day;
-        TimeSpan time;
-        string fileExtension;
-        if (!parseCameraFileName(fileInfo.Name, out cameraNumber, out day, out time, out fileExtension))
-          continue;
-        if (fileExtension != "mp4")
-          continue;
-
-        ++videoNumber;
-
-        // We'll finish the line below
-        Console.Out.Write(videoNumber + " of " + nVideos + ": " + fileInfo.Name + " -> ");
-
-        var toDirectory = getPublicCamerasDirectoryPath(day);
-        if (!Directory.Exists(toDirectory))
-          Directory.CreateDirectory(toDirectory);
-        var toFilePath = Path.Combine(toDirectory, "camera" + cameraNumber + "." +
-          day.ToString("yyyyMMdd") + "_" + time.ToString("hhmmss") + ".mp4");
-
-        File.Move(fileInfo.FullName, toFilePath);
-
-        Console.Out.WriteLine(toFilePath);
-      }
-      if (true) return;
-#endif
-
-      var initialInventorySize = new FileInfo(blobInventoryFilePath_).Length;
-      var fileInventory = readBlobFileInventory();
-      var videoInventory = getCameraVideoInventory(fileInventory);
+      var videoInventory = new VideoInventory();
+      getCameraVideoFileInventory(new DirectoryInfo(camerasDirectoryPath_), videoInventory);
       var now = DateTime.Now;
       var newVideoDates = storeNewVideos(videoInventory, now);
 
       // Refresh the inventory.
-      fileInventory = readBlobFileInventory();
-      videoInventory = getCameraVideoInventory(fileInventory);
+      videoInventory.Clear();
+      getCameraVideoFileInventory(new DirectoryInfo(camerasDirectoryPath_), videoInventory);
 
+#if false // debug
       // Get the months that have been modified with new videos.
       var modifiedMonths = new HashSet<DateTime>();
       foreach (var date in newVideoDates) {
@@ -164,15 +113,9 @@ namespace StoreBlobs
         writeVideosIndexPage(fileInventory, videoInventory);
         storeFile(videosIndexPagePath_, fileInventory);
       }
+#endif
 
-      writeMainIndexPage(fileInventory, videoInventory, now);
-      // Sanity check the inventory file size.
-      if (new FileInfo(blobInventoryFilePath_).Length < initialInventorySize)
-        throw new Exception
-          ("ERROR: The inventory file has gotten smaller and may have been overwritten.");
-      else
-        // Back up the inventory file.
-        File.Copy(blobInventoryFilePath_, oneDriveInventoryFilePath_, true);
+      writeMainIndexPage(videoInventory, now);
     }
 
     private static HashSet<DateTime>
@@ -183,11 +126,13 @@ namespace StoreBlobs
 
       var directoryPath = @"D:\BlueIris\New";
       foreach (var fileInfo in new DirectoryInfo(directoryPath).GetFiles()) {
-        int camera;
+        int cameraNumber;
         DateTime date;
         TimeSpan time;
         string fileExtension;
-        if (!parseCameraFileName(fileInfo.Name, out camera, out date, out time, out fileExtension))
+        if (!parseCameraFileName(fileInfo.Name, out cameraNumber, out date, out time, out fileExtension))
+          continue;
+        if (fileExtension != "mp4")
           continue;
         if ((date + time) >= startOfHour)
           // Skip videos being recorded this hour.
@@ -197,13 +142,33 @@ namespace StoreBlobs
         if (videoInventory.TryGetValue(date, out timeSet)) {
           Dictionary<int, BlobNameAndType> cameraSet;
           if (timeSet.TryGetValue(time, out cameraSet)) {
-            if (cameraSet.ContainsKey(camera))
+            if (cameraSet.ContainsKey(cameraNumber))
               // Already stored the video.
               continue;
           }
         }
 
-        storeFile(fileInfo.FullName, null);
+        Console.Out.Write(fileInfo.FullName + " .");
+        var toSubDirectory = date.Year + @"\" + date.ToString("yyyyMM") + @"\" + date.ToString("yyyyMMdd");
+        var toFileSubPath = Path.Combine(toSubDirectory, "camera" + cameraNumber + "." +
+          date.ToString("yyyyMMdd") + "_" + time.ToString("hhmmss") + ".mp4");
+        {
+          // Copy to public/cameras.
+          var toFileInfo = new FileInfo(Path.Combine(camerasDirectoryPath_, toFileSubPath));
+          if (!Directory.Exists(toFileInfo.DirectoryName))
+            Directory.CreateDirectory(toFileInfo.DirectoryName);
+          safeCopyFile(fileInfo.FullName, toFileInfo.FullName);
+        }
+        {
+          // Sync to OneDrive.
+          Console.Out.Write(".");
+          var toFileInfo = new FileInfo(Path.Combine(oneDriveCamerasDirectoryPath_, toFileSubPath));
+          if (!Directory.Exists(toFileInfo.DirectoryName))
+            Directory.CreateDirectory(toFileInfo.DirectoryName);
+          fileInfo.CopyTo(toFileInfo.FullName, true);
+        }
+        Console.Out.WriteLine(" done");
+
         newVideoDates.Add(date);
       }
 
@@ -226,10 +191,10 @@ namespace StoreBlobs
       Console.Out.Write(".");
       if (!Directory.Exists(blobFileDirectory))
         Directory.CreateDirectory(blobFileDirectory);
-      copyBlob(sourceFilePath, blobFilePath);
+      safeCopyFile(sourceFilePath, blobFilePath);
       // Sync to OneDrive.
       Console.Out.Write(".");
-      syncFile(new FileInfo(blobFilePath), Path.Combine(oneDriveBlobsDirectoryPath_, blobFileSubPath), false);
+      syncFile(new FileInfo(blobFilePath), Path.Combine(oneDriveBlobsDirectoryPath_, blobFileSubPath));
 
       // Update the inventory.
       Console.Out.Write(".");
@@ -245,16 +210,14 @@ namespace StoreBlobs
     }
 
     static void 
-    copyBlob(string sourceFilePath, string blobFilePath)
+    safeCopyFile(string sourceFilePath, string toFilePath)
     {
-      // TODO: Check if blobFilePath exists and is the same file.
+      var tempFilePath = toFilePath + ".temp";
+      File.Copy(sourceFilePath, tempFilePath, true);
 
-      var tempFilePath = blobFilePath + ".temp";
-      File.Copy(sourceFilePath, tempFilePath);
-
-      if (File.Exists(blobFilePath))
-        File.Delete(blobFilePath);
-      File.Move(tempFilePath, blobFilePath);
+      if (File.Exists(toFilePath))
+        File.Delete(toFilePath);
+      File.Move(tempFilePath, toFilePath);
     }
 
     static byte[] 
@@ -300,18 +263,18 @@ namespace StoreBlobs
     }
 
     static bool
-    parseCameraFileName(string filePath, out int camera, out DateTime date, out TimeSpan time, out string fileExtension)
+    parseCameraFileName(string filePath, out int cameraNumber, out DateTime date, out TimeSpan time, out string fileExtension)
     {
       var match = cameraFileNameRegex_.Match(Path.GetFileName(filePath));
       if (!match.Success) {
-        camera = 0;
+        cameraNumber = 0;
         date = new DateTime();
         time = new TimeSpan();
         fileExtension = null;
         return false;
       }
 
-      camera = Int32.Parse(match.Groups[1].Value);
+      cameraNumber = Int32.Parse(match.Groups[1].Value);
       var year = Int32.Parse(match.Groups[2].Value);
       var month = Int32.Parse(match.Groups[3].Value);
       var day = Int32.Parse(match.Groups[4].Value);
@@ -335,11 +298,11 @@ namespace StoreBlobs
         var filePath = entry.Key;
         var blobName = entry.Value;
 
-        int camera;
+        int cameraNumber;
         DateTime date;
         TimeSpan time;
         string fileExtension;
-        if (!parseCameraFileName(filePath, out camera, out date, out time, out fileExtension))
+        if (!parseCameraFileName(filePath, out cameraNumber, out date, out time, out fileExtension))
           continue;
 
         SortedDictionary<TimeSpan, Dictionary<int, BlobNameAndType>> timeSet;
@@ -354,10 +317,47 @@ namespace StoreBlobs
           timeSet[time] = cameraSet;
         }
 
-        cameraSet[camera] = new BlobNameAndType(blobName, contentTypes_[fileExtension]);
+        cameraSet[cameraNumber] = new BlobNameAndType(blobName, contentTypes_[fileExtension]);
       }
 
       return result;
+    }
+
+    /// <summary>
+    /// Recursively read directory and add camera video files to result.
+    /// The BlobNameAndType BlobName is the file path.
+    /// </summary>
+    static void
+    getCameraVideoFileInventory(DirectoryInfo directoryInfo, VideoInventory result)
+    {
+      if (directoryInfo.FullName.Length == camerasDirectoryPath_.Length + 5)
+        Console.Out.WriteLine("Reading inventory: " + directoryInfo.FullName);
+
+      foreach (var fileInfo in directoryInfo.GetFiles()) {
+        int camera;
+        DateTime date;
+        TimeSpan time;
+        string fileExtension;
+        if (!parseCameraFileName(fileInfo.Name, out camera, out date, out time, out fileExtension))
+          continue;
+
+        SortedDictionary<TimeSpan, Dictionary<int, BlobNameAndType>> timeSet;
+        if (!result.TryGetValue(date, out timeSet)) {
+          timeSet = new SortedDictionary<TimeSpan, Dictionary<int, BlobNameAndType>>();
+          result[date] = timeSet;
+        }
+
+        Dictionary<int, BlobNameAndType> cameraSet;
+        if (!timeSet.TryGetValue(time, out cameraSet)) {
+          cameraSet = new Dictionary<int, BlobNameAndType>();
+          timeSet[time] = cameraSet;
+        }
+
+        cameraSet[camera] = new BlobNameAndType(fileInfo.FullName, contentTypes_[fileExtension]);
+      }
+
+      foreach (var dir in directoryInfo.GetDirectories())
+        getCameraVideoFileInventory(dir, result);
     }
 
     static string
@@ -493,7 +493,7 @@ namespace StoreBlobs
             file.WriteLine("              <br>");
           else
             file.WriteLine(@"              <a href=""" +
-              blobNameToUri(blobNameAndType.BlobName, blobNameAndType.ContentType) + @""">" +
+              blobNameAndType.BlobName.Replace(@"C:\public\", "").Replace(@"\", "/") + @""">" +
               entry.Key.Hours.ToString("D2") + ":" + entry.Key.Minutes.ToString("D2") +
               (entry.Key.Seconds != 0 ? ":" + entry.Key.Seconds.ToString("D2") : "") + "</a><br>");
         }
@@ -653,9 +653,9 @@ video. Each is about 200 MB, but should start streaming in Firefox.
     }
 
     static void
-    writeMainIndexPage(Dictionary<string, string> fileInventory, VideoInventory videoInventory, DateTime now)
+    writeMainIndexPage(VideoInventory videoInventory, DateTime now)
     {
-      var videosIndexPageBlobName = fileInventory[videosIndexPagePath_];
+      var videosIndexPageBlobName = "";
       var today = now.Date;
 
       using (var file = new StreamWriter(@"C:\inetpub\wwwroot\index.htm")) {
@@ -669,10 +669,9 @@ video. Each is about 200 MB, but should start streaming in Firefox.
 </head>
 <body>
 <h1>Welcome to data.thefirst.org</h1>
-You must use Firefox with the ""ni"" add-on. To install it, save ni-protocol.xpi to your computer:<br>
-<a
- href=""https://github.com/jefft0/nuvl/raw/master/ni-protocol/firefox/ni-protocol.xpi"">https://github.com/jefft0/nuvl/raw/master/ni-protocol/firefox/ni-protocol.xpi</a><br>
-Start Firefox and drag ni-protocol.xpi into Firefox. Follow the instructions and restart Firefox.<br>
+You must use Firefox with the <a
+ href=""https://addons.mozilla.org/en-US/firefox/addon/ipfs-gateway-redirect/"">IPFS add-on</a>.
+Click the IPFS icon in the Firefox toolbar and click ""Open Preferences"". Set ""Custom Gateway Host"" to ""data.thefirst.org"".<br>
 <br>
 <a href=""" + blobNameToUri(videosIndexPageBlobName, "text/html") + @""">All videos by date</a><br><br>
 Videos for today, " + today.ToString("d MMMM, yyyy") + @":<br>
@@ -691,12 +690,10 @@ Videos for today, " + today.ToString("d MMMM, yyyy") + @":<br>
       }
     }
 
-    static void syncFile(FileInfo fromFileInfo, string toDirectoryPath, bool verbose)
+    static void syncFile(FileInfo fromFileInfo, string toDirectoryPath)
     {
       var toFileInfo = new FileInfo(Path.Combine(toDirectoryPath, fromFileInfo.Name));
       if (!toFileInfo.Exists) {
-        if (verbose)
-          Console.Out.WriteLine("Copy " + fromFileInfo.FullName);
         Directory.CreateDirectory(toDirectoryPath);
         fromFileInfo.CopyTo(toFileInfo.FullName);
       }
@@ -718,16 +715,12 @@ Videos for today, " + today.ToString("d MMMM, yyyy") + @":<br>
       return result.ToString();
     }
 
-    static string getPublicCamerasDirectoryPath(DateTime day)
-    {
-      return Path.Combine(publicDirectoryPath_, @"cameras\" + day.Year + @"\" + 
-        day.ToString("yyyyMM") + @"\" + day.ToString("yyyyMMdd"));
-    }
-
     static string publicDirectoryPath_ = @"C:\public";
+    static string camerasDirectoryPath_ = Path.Combine(publicDirectoryPath_, "cameras");
     static string blobsDirectoryPath_ = Path.Combine(publicDirectoryPath_, "blobs");
     static string blobInventoryFilePath_ = Path.Combine(blobsDirectoryPath_, "inventory.tsv");
     static string oneDrivePublicDirectoryPath_ = @"C:\Users\jeff\OneDrive\public";
+    static string oneDriveCamerasDirectoryPath_ = Path.Combine(oneDrivePublicDirectoryPath_, "cameras");
     static string oneDriveBlobsDirectoryPath_ = Path.Combine(oneDrivePublicDirectoryPath_, "blobs");
     static string oneDriveInventoryFilePath_ = Path.Combine(oneDriveBlobsDirectoryPath_, "inventory.tsv");
     static string tempDirectoryPath_ = @"C:\temp";
