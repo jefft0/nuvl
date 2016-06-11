@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Collections.Generic;
 using System.Text;
@@ -33,7 +34,7 @@ namespace StoreBlobs
     Main(string[] args)
     {
 #if false // from blobs
-      var fileInventory0 = readBlobFileInventory();
+      var fileInventory0 = readFileInventory(blobInventoryFilePath_);
       var videoInventory0 = getCameraVideoInventory(fileInventory0);
 
       var debugAllBlobs = new Dictionary<string, string>();
@@ -85,16 +86,15 @@ namespace StoreBlobs
       if (true) return;
 #endif
 
-      var videoInventory = new VideoInventory();
-      getCameraVideoFileInventory(new DirectoryInfo(camerasDirectoryPath_), videoInventory);
+      var fileInventory = readFileInventory(filestoreInventoryFilePath_);
+      var videoInventory = getCameraVideoInventory(fileInventory);
       var now = DateTime.Now;
       var newVideoDates = storeNewVideos(videoInventory, now);
 
       // Refresh the inventory.
-      videoInventory.Clear();
-      getCameraVideoFileInventory(new DirectoryInfo(camerasDirectoryPath_), videoInventory);
+      fileInventory = readFileInventory(filestoreInventoryFilePath_);
+      videoInventory = getCameraVideoInventory(fileInventory);
 
-#if false // debug
       // Get the months that have been modified with new videos.
       var modifiedMonths = new HashSet<DateTime>();
       foreach (var date in newVideoDates) {
@@ -108,12 +108,10 @@ namespace StoreBlobs
       if (modifiedMonths.Count > 0) {
         // Update the index pages.
         foreach (var month in modifiedMonths)
-          storeFile(writeMonthIndexPage(videoInventory, month.Year, month.Month), fileInventory);
+          writeMonthIndexPage(videoInventory, month.Year, month.Month);
 
         writeVideosIndexPage(fileInventory, videoInventory);
-        storeFile(videosIndexPagePath_, fileInventory);
       }
-#endif
 
       writeMainIndexPage(videoInventory, now);
     }
@@ -152,21 +150,26 @@ namespace StoreBlobs
         var toSubDirectory = date.Year + @"\" + date.ToString("yyyyMM") + @"\" + date.ToString("yyyyMMdd");
         var toFileSubPath = Path.Combine(toSubDirectory, "camera" + cameraNumber + "." +
           date.ToString("yyyyMMdd") + "_" + time.ToString("hhmmss") + ".mp4");
-        {
-          // Copy to public/cameras.
-          var toFileInfo = new FileInfo(Path.Combine(camerasDirectoryPath_, toFileSubPath));
-          if (!Directory.Exists(toFileInfo.DirectoryName))
-            Directory.CreateDirectory(toFileInfo.DirectoryName);
-          safeCopyFile(fileInfo.FullName, toFileInfo.FullName);
-        }
-        {
+        var toFileInfo = new FileInfo(Path.Combine(camerasDirectoryPath_, toFileSubPath));
+
+        // Copy to public/cameras.
+        if (!Directory.Exists(toFileInfo.DirectoryName))
+          Directory.CreateDirectory(toFileInfo.DirectoryName);
+        safeCopyFile(fileInfo.FullName, toFileInfo.FullName);
+
+        if (date.Year >= 2016) {
           // Sync to OneDrive.
           Console.Out.Write(".");
-          var toFileInfo = new FileInfo(Path.Combine(oneDriveCamerasDirectoryPath_, toFileSubPath));
-          if (!Directory.Exists(toFileInfo.DirectoryName))
-            Directory.CreateDirectory(toFileInfo.DirectoryName);
-          fileInfo.CopyTo(toFileInfo.FullName, true);
+          var toOneDriveFileInfo = new FileInfo(Path.Combine(oneDriveCamerasDirectoryPath_, toFileSubPath));
+          if (!Directory.Exists(toOneDriveFileInfo.DirectoryName))
+            Directory.CreateDirectory(toOneDriveFileInfo.DirectoryName);
+          fileInfo.CopyTo(toOneDriveFileInfo.FullName, true);
         }
+
+        // Add to IPFS.
+        Console.Out.Write(".");
+        ipfsFilestoreAdd(toFileInfo.FullName);
+
         Console.Out.WriteLine(" done");
 
         newVideoDates.Add(date);
@@ -209,6 +212,42 @@ namespace StoreBlobs
       return blobName;
     }
 
+    /// <summary>
+    /// Invoke "ipfs filestore add filePath" and update the inventory file.
+    /// </summary>
+    /// <param name="filePath">The file path to add.</param>
+    /// <returns>The multihash, or null if didn't get a result.</returns>
+    static string ipfsFilestoreAdd(string filePath)
+    {
+      var process = new Process
+      {
+        StartInfo = new ProcessStartInfo
+        {
+          FileName = @"C:\work\go\bin\ipfs.exe",
+          Arguments = "filestore add \"" + filePath + "\"",
+          UseShellExecute = false,
+          RedirectStandardOutput = true,
+          CreateNoWindow = true
+        }
+      };
+
+      string multihash = null;
+
+      process.Start();
+      while (!process.StandardOutput.EndOfStream) {
+        var line = process.StandardOutput.ReadLine().Trim();
+        var splitLine = line.Split(new char[] { ' ' });
+        if (splitLine.Length >= 2 && splitLine[0] == "added")
+          multihash = splitLine[1];
+      }
+
+      if (multihash != null)
+        // Update the inventory file.
+        File.AppendAllText(filestoreInventoryFilePath_, multihash + "\t" + filePath + "\r\n");
+
+      return multihash;
+    }
+
     static void 
     safeCopyFile(string sourceFilePath, string toFilePath)
     {
@@ -242,13 +281,18 @@ namespace StoreBlobs
         return null;
     }
 
+    /// <summary>
+    /// Read inventoryFilePath and return the inventory.
+    /// </summary>
+    /// <param name="inventoryFilePath">The TSV file to read, containing hash\tfilePath</param>
+    /// <returns>A dictionary where the key is the filePath and the value is the hash.</returns>
     static Dictionary<string, string>
-    readBlobFileInventory()
+    readFileInventory(string inventoryFilePath)
     {
       var tab = new char[] { '\t' };
       var result = new Dictionary<string, string>();
 
-      using (var file = new StreamReader(blobInventoryFilePath_)) {
+      using (var file = new StreamReader(inventoryFilePath)) {
         var line = "";
         while ((line = file.ReadLine()) != null) {
           var splitLine = line.Split(tab);
@@ -323,47 +367,10 @@ namespace StoreBlobs
       return result;
     }
 
-    /// <summary>
-    /// Recursively read directory and add camera video files to result.
-    /// The BlobNameAndType BlobName is the file path.
-    /// </summary>
-    static void
-    getCameraVideoFileInventory(DirectoryInfo directoryInfo, VideoInventory result)
-    {
-      if (directoryInfo.FullName.Length == camerasDirectoryPath_.Length + 5)
-        Console.Out.WriteLine("Reading inventory: " + directoryInfo.FullName);
-
-      foreach (var fileInfo in directoryInfo.GetFiles()) {
-        int camera;
-        DateTime date;
-        TimeSpan time;
-        string fileExtension;
-        if (!parseCameraFileName(fileInfo.Name, out camera, out date, out time, out fileExtension))
-          continue;
-
-        SortedDictionary<TimeSpan, Dictionary<int, BlobNameAndType>> timeSet;
-        if (!result.TryGetValue(date, out timeSet)) {
-          timeSet = new SortedDictionary<TimeSpan, Dictionary<int, BlobNameAndType>>();
-          result[date] = timeSet;
-        }
-
-        Dictionary<int, BlobNameAndType> cameraSet;
-        if (!timeSet.TryGetValue(time, out cameraSet)) {
-          cameraSet = new Dictionary<int, BlobNameAndType>();
-          timeSet[time] = cameraSet;
-        }
-
-        cameraSet[camera] = new BlobNameAndType(fileInfo.FullName, contentTypes_[fileExtension]);
-      }
-
-      foreach (var dir in directoryInfo.GetDirectories())
-        getCameraVideoFileInventory(dir, result);
-    }
-
     static string
     getMonthIndexPageFilePath(int year, int month)
     {
-      return tempDirectoryPath_ + @"\" + "video index " + year + "-" + month.ToString("D2") + ".html";
+      return Path.Combine(wwwrootDirectoryPath_, "videos-index-" + year + "-" + month.ToString("D2") + ".html");
     }
 
     static string
@@ -493,7 +500,7 @@ namespace StoreBlobs
             file.WriteLine("              <br>");
           else
             file.WriteLine(@"              <a href=""" +
-              blobNameAndType.BlobName.Replace(@"C:\public\", "").Replace(@"\", "/") + @""">" +
+              "fs:/ipfs/" + blobNameAndType.BlobName + @""">" +
               entry.Key.Hours.ToString("D2") + ":" + entry.Key.Minutes.ToString("D2") +
               (entry.Key.Seconds != 0 ? ":" + entry.Key.Seconds.ToString("D2") : "") + "</a><br>");
         }
@@ -569,9 +576,14 @@ video. Each is about 200 MB, but should start streaming in Firefox.
     static void 
     writeMonthIndexCell(Dictionary<string, string> fileInventory, VideoInventory videoInventory, int year, int month, StreamWriter file)
     {
+#if false
       string monthBlobName;
       if (!fileInventory.TryGetValue(getMonthIndexPageFilePath(year, month), out monthBlobName))
         return;
+      var monthUri = blobNameToUri(monthBlobName, "text/html");
+#else
+      var monthUri = Path.GetFileName(getMonthIndexPageFilePath(year, month));
+#endif
 
       // Get the days in the month that have a video.
       var daySet = new HashSet<int>();
@@ -585,7 +597,6 @@ video. Each is about 200 MB, but should start streaming in Firefox.
       var firstOfMonth = new DateTime(year, month, 1);
       var daysInMonth = DateTime.DaysInMonth(year, month);
       var monthName = firstOfMonth.ToString("MMMM");
-      var monthUri = blobNameToUri(monthBlobName, "text/html");
 
       // We make a grid with 7 columns. The week starts on a Monday.
       // Get the grid index of the first of the month.
@@ -655,10 +666,10 @@ video. Each is about 200 MB, but should start streaming in Firefox.
     static void
     writeMainIndexPage(VideoInventory videoInventory, DateTime now)
     {
-      var videosIndexPageBlobName = "";
+      var videosIndexPageUri = Path.GetFileName(videosIndexPagePath_);
       var today = now.Date;
 
-      using (var file = new StreamWriter(@"C:\inetpub\wwwroot\index.htm")) {
+      using (var file = new StreamWriter(Path.Combine(wwwrootDirectoryPath_, "index.htm"))) {
         file.Write(
 @"<!DOCTYPE HTML PUBLIC ""html"">
 <html>
@@ -673,7 +684,7 @@ You must use Firefox with the <a
  href=""https://addons.mozilla.org/en-US/firefox/addon/ipfs-gateway-redirect/"">IPFS add-on</a>.
 Click the IPFS icon in the Firefox toolbar and click ""Open Preferences"". Set ""Custom Gateway Host"" to ""data.thefirst.org"".<br>
 <br>
-<a href=""" + blobNameToUri(videosIndexPageBlobName, "text/html") + @""">All videos by date</a><br><br>
+<a href=""" + videosIndexPageUri + @""">All videos by date</a><br><br>
 Videos for today, " + today.ToString("d MMMM, yyyy") + @":<br>
 ");
 
@@ -723,8 +734,11 @@ Videos for today, " + today.ToString("d MMMM, yyyy") + @":<br>
     static string oneDriveCamerasDirectoryPath_ = Path.Combine(oneDrivePublicDirectoryPath_, "cameras");
     static string oneDriveBlobsDirectoryPath_ = Path.Combine(oneDrivePublicDirectoryPath_, "blobs");
     static string oneDriveInventoryFilePath_ = Path.Combine(oneDriveBlobsDirectoryPath_, "inventory.tsv");
+    static string ipfsConfigDirectoryPath_ = @"C:\Users\jeff\.ipfs";
+    static string filestoreInventoryFilePath_ = Path.Combine(ipfsConfigDirectoryPath_, "filestoreInventory.tsv");
     static string tempDirectoryPath_ = @"C:\temp";
-    static string videosIndexPagePath_ = tempDirectoryPath_ + @"\videos-index.html";
+    static string wwwrootDirectoryPath_ = @"C:\inetpub\wwwroot";
+    static string videosIndexPagePath_ = Path.Combine(wwwrootDirectoryPath_, "videos-index.html");
     static Regex cameraFileNameRegex_ = new Regex("^camera(\\d{1})\\.(\\d{4})(\\d{2})(\\d{2})_(\\d{2})(\\d{2})(\\d{2})\\.(mp4|avi)$");
     // The key is a filename extension like "mp4". The value is a content type like "video/mp4".
     static Dictionary<string, string> contentTypes_ = new Dictionary<string, string>() { { "mp4", "video/mp4" }, { "avi", "video/avi" } };
