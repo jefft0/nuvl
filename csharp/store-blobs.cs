@@ -33,7 +33,7 @@ namespace StoreBlobs
     static void
     Main(string[] args)
     {
-#if false // from blobs
+#if true // from blobs
       var fileInventory0 = readFileInventory(blobInventoryFilePath_);
       var videoInventory0 = getCameraVideoInventory(fileInventory0);
 
@@ -178,40 +178,6 @@ namespace StoreBlobs
       return newVideoDates;
     }
 
-    static string
-    storeFile(string sourceFilePath, Dictionary<string, string> fileInventory)
-    {
-      Console.Out.Write(sourceFilePath + " .");
-      var base64 = toBase64(readFileSha256(sourceFilePath));
-      var blobName = "sha256-" + base64;
-
-      var blobFileSubPath = @"sha256\" +
-        blobUpperBang(base64.Substring(0, 2)) + @"\" +
-        blobUpperBang(base64.Substring(2, 2));
-      var blobFileDirectory = Path.Combine(blobsDirectoryPath_, blobFileSubPath);
-      var blobFilePath = Path.Combine(blobFileDirectory, blobUpperBang(blobName) + ".dat");
-
-      Console.Out.Write(".");
-      if (!Directory.Exists(blobFileDirectory))
-        Directory.CreateDirectory(blobFileDirectory);
-      safeCopyFile(sourceFilePath, blobFilePath);
-      // Sync to OneDrive.
-      Console.Out.Write(".");
-      syncFile(new FileInfo(blobFilePath), Path.Combine(oneDriveBlobsDirectoryPath_, blobFileSubPath));
-
-      // Update the inventory.
-      Console.Out.Write(".");
-      using (var file = new StreamWriter(blobInventoryFilePath_, true))
-        file.WriteLine(blobName + "\t" + sourceFilePath);
-
-      Console.Out.WriteLine(" " + blobName);
-
-      if (fileInventory != null)
-        fileInventory[sourceFilePath] = blobName;
-
-      return blobName;
-    }
-
     /// <summary>
     /// Invoke "ipfs filestore add filePath" and update the inventory file.
     /// </summary>
@@ -257,28 +223,6 @@ namespace StoreBlobs
       if (File.Exists(toFilePath))
         File.Delete(toFilePath);
       File.Move(tempFilePath, toFilePath);
-    }
-
-    static byte[] 
-    readFileSha256(string filePath)
-    {
-      using (var file = File.OpenRead(filePath))
-        return SHA256Managed.Create().ComputeHash(file);
-    }
-
-    static string 
-    toBase64(byte[] binary)
-    {
-      return System.Convert.ToBase64String(binary)
-        .Replace("=", "").Replace('+', '-').Replace('/', '_');
-    }
-
-    static string blobNameToUri(string blobName, string contentType)
-    {
-      if (blobName.StartsWith("sha256-"))
-        return ("ni:///sha-256;" + blobName.Substring(7) + "?ct=" + contentType);
-      else
-        return null;
     }
 
     /// <summary>
