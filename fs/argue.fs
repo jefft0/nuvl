@@ -55,7 +55,7 @@ type Argument =
 
 type Attack = { From: int; To: int }
 
-type ArgumentationTheory =
+type ArgumentSet =
   { Arguments: Argument[]; ArgumentIndexes: Set<int>; ArgumentIndexesByConclusion: Map<string, int[]>}
   // Compute Arguments from an argument set.
   static member make argumentSet =
@@ -141,7 +141,7 @@ let constructArguments propositions rules =
   // Call the recursive method to obtain complex args.
   constructArgumentsHelper args rules
 
-let calculateAttack (theory:ArgumentationTheory) =
+let calculateAttack (theory:ArgumentSet) =
   Set.fold (fun attack a1Index ->
       let a1 = theory.Arguments.[a1Index]
       if a1.TopRule.IsNone && not (a1.isFirm()) then
