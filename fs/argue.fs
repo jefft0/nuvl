@@ -37,18 +37,18 @@ let ensuredFlat assumptions rules =
   | _ -> rules
 
 type Argument = 
-  { TopRule: Rule option; QuasiSubArguments: Set<Argument>; Conclusion: string; Rules: Set<Rule>; Premises: Set<string>; 
+  { TopRule: Rule option; Conclusion: string; Rules: Set<Rule>; Premises: Set<string>; 
     DirectSubArguments: Set<Argument> }
   static member make(topRule, subArguments) = 
     let rules = Set.fold (fun rules arg -> match arg.TopRule with Some r -> Set.add r rules | _ -> rules) 
                          (Set.singleton topRule) subArguments
     let premises = Set.fold (fun premises arg -> premises + arg.Premises) Set.empty subArguments
-    { TopRule = Some topRule; QuasiSubArguments = subArguments; Conclusion = topRule.Consequent; Rules = rules; Premises = premises; 
+    { TopRule = Some topRule; Conclusion = topRule.Consequent; Rules = rules; Premises = premises; 
       // Populate the direct sub-arguments - those arguments whose conclusions are the antecedents of the top rule.
       DirectSubArguments = Set.filter (fun arg -> topRule.Antecedents.Contains arg.Conclusion) subArguments } 
   // From a single premise p.
   static member make p = 
-    { TopRule = None; QuasiSubArguments = Set.empty; Conclusion = p; Rules = Set.empty; Premises = Set.singleton p; 
+    { TopRule = None; Conclusion = p; Rules = Set.empty; Premises = Set.singleton p; 
       DirectSubArguments = Set.empty }
   member this.isFirm() = Set.forall (fun p -> not (isAssumption p)) this.Premises
   member this.getSubArguments() = Set.fold (fun temp (a:Argument) -> a.getSubArguments() + temp) this.DirectSubArguments this.DirectSubArguments
