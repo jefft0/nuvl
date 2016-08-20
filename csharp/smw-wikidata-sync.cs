@@ -45,6 +45,7 @@ namespace Nuvl
           string propertyIdPageTitle;
           if (propertyIdPageTitle_.TryGetValue(entry.Key, out propertyIdPageTitle)) {
             if (propertyIdPageTitle != expectedTitle) {
+              // Debug: Check for SMW references to propertyIdPageTitle.
               renamedProperties.Add(new string[] { propertyIdPageTitle, expectedTitle });
               question += "P" + entry.Key + " " + propertyIdPageTitle + " -> " + expectedTitle + "\r\n";
             }
@@ -63,6 +64,18 @@ namespace Nuvl
 
           resyncPageInfo();
         }
+
+#if false
+        // Now look for deleted properties.
+        foreach (var entry in propertyIdPageTitle_) {
+          if (!wikidata_.properties_.ContainsKey(entry.Key)) {
+            // Debug: Check for SMW references to entry.Value.
+            Console.Out.WriteLine("Debug: Was removed from Wikidata: P" + entry.Key + " " + entry.Value);
+            mediaWiki_.deletePage(entry.Value, "P" + entry.Key + " was deleted from Wikidata");
+          }
+        }
+        // resyncPageInfo();
+#endif
 
         // Now look for new properties.
         foreach (var entry in wikidata_.properties_) {
