@@ -12,9 +12,9 @@ let rec subscript x = if x < 0 then "\u208b" + subscript -x else String.map subs
 let setOfArray array = Set.ofArray array
 
 type Rule = 
-  { Consequent: string; Antecedents: Set<string> }
-  static member make(consequent, antecedents) = {Consequent = consequent; Antecedents = antecedents}
-  static member make(consequent, antecedent) = {Consequent = consequent; Antecedents = Set.singleton antecedent}
+  { Antecedents: Set<string>; Consequent: string }
+  static member make(antecedents, consequent) = {Antecedents = antecedents; Consequent = consequent}
+  static member make(antecedent, consequent) = {Antecedents = Set.singleton antecedent; Consequent = consequent}
   static member toString(rule) = 
     (Set.fold (fun acc antecedent -> acc + ", " + literalString antecedent) "" rule.Antecedents).Substring(2) +
      " -> " + literalString rule.Consequent
