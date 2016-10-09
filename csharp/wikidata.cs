@@ -98,6 +98,8 @@ namespace Nuvl
       public HashSet<int> debugRootClasses_ = null;
       public bool hasSubclassOfLoop_ = false;
       public bool hasPartOfLoop_ = false;
+      public bool hasLocationLoop_ = false;
+      public bool hasLocatedInTheAdministrativeTerritorialEntityLoop_ = false;
       private string label_;
       private bool labelHasId_ = false;
 
@@ -120,10 +122,14 @@ namespace Nuvl
       public delegate void SetHasLoop(Item item, bool hasLoop);
       public static void setHasSubclassOfLoop(Item item, bool hasLoop) { item.hasSubclassOfLoop_ = hasLoop; }
       public static void setHasPartOfLoop(Item item, bool hasLoop) { item.hasPartOfLoop_ = hasLoop; }
+      public static void setHasLocationLoop(Item item, bool hasLoop) { item.hasLocationLoop_ = hasLoop; }
+      public static void setHasLocatedInTheAdministrativeTerritorialEntityLoop(Item item, bool hasLoop) { item.hasLocatedInTheAdministrativeTerritorialEntityLoop_ = hasLoop; }
 
       public delegate bool GetHasLoop(Item item);
       public static bool getHasSubclassOfLoop(Item item) { return item.hasSubclassOfLoop_; }
       public static bool getHasPartOfLoop(Item item) { return item.hasPartOfLoop_; }
+      public static bool getHasLocationLoop(Item item) { return item.hasLocationLoop_; }
+      public static bool getHasLocatedInTheAdministrativeTerritorialEntityLoop(Item item) { return item.hasLocatedInTheAdministrativeTerritorialEntityLoop_; }
     }
 
     public class Property
