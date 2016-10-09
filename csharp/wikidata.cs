@@ -92,6 +92,9 @@ namespace Nuvl
       public HashSet<int> hasSubclass_ = null;
       public int[] partOf_ = null;
       public HashSet<int> hasPart_ = null;
+      public int[] location_ = null;
+      public int[] locatedInTheAdministrativeTerritorialEntity_ = null;
+      public int[] locatedInTimeZone_ = null;
       public HashSet<int> debugRootClasses_ = null;
       public bool hasSubclassOfLoop_ = false;
       public bool hasPartOfLoop_ = false;
@@ -107,6 +110,12 @@ namespace Nuvl
       public static ICollection<int> getPartOf(Item item) { return item.partOf_; }
       public static void setPartOf(Item item, int[] values) { item.partOf_ = values; }
       public static ICollection<int> getHasPart(Item item) { return item.hasPart_; }
+      public static ICollection<int> getLocation(Item item) { return item.location_; }
+      public static void setLocation(Item item, int[] values) { item.location_ = values; }
+      public static ICollection<int> getLocatedInTheAdministrativeTerritorialEntity(Item item) { return item.locatedInTheAdministrativeTerritorialEntity_; }
+      public static void setLocatedInTheAdministrativeTerritorialEntity(Item item, int[] values) { item.locatedInTheAdministrativeTerritorialEntity_ = values; }
+      public static ICollection<int> getLocatedInTimeZone(Item item) { return item.locatedInTimeZone_; }
+      public static void setLocatedInTimeZone(Item item, int[] values) { item.locatedInTimeZone_ = values; }
 
       public delegate void SetHasLoop(Item item, bool hasLoop);
       public static void setHasSubclassOfLoop(Item item, bool hasLoop) { item.hasSubclassOfLoop_ = hasLoop; }
@@ -390,6 +399,9 @@ namespace Nuvl
       dumpProperty(items_, Item.getInstanceOf, @"c:\temp\instanceOf.tsv");
       dumpProperty(items_, Item.getSubclassOf, @"c:\temp\subclassOf.tsv");
       dumpProperty(items_, Item.getPartOf, @"c:\temp\partOf.tsv");
+      dumpProperty(items_, Item.getLocation, @"c:\temp\location.tsv");
+      dumpProperty(items_, Item.getLocatedInTheAdministrativeTerritorialEntity, @"c:\temp\locatedInTheAdministrativeTerritorialEntity.tsv");
+      dumpProperty(items_, Item.getLocatedInTimeZone, @"c:\temp\locatedInTimeZone.tsv");
 
       dumpProperty(properties_, Property.getSubpropertyOf, @"c:\temp\propertySubpropertyOf.tsv");
 
@@ -477,6 +489,9 @@ namespace Nuvl
       loadPropertyFromDump(@"c:\temp\instanceOf.tsv", items_, Item.setInstanceOf, "instance of");
       loadPropertyFromDump(@"c:\temp\subclassOf.tsv", items_, Item.setSubclassOf, "subclass of");
       loadPropertyFromDump(@"c:\temp\partOf.tsv", items_, Item.setPartOf, "part of");
+      loadPropertyFromDump(@"c:\temp\location.tsv", items_, Item.setLocation, "location");
+      loadPropertyFromDump(@"c:\temp\locatedInTheAdministrativeTerritorialEntity.tsv", items_, Item.setLocatedInTheAdministrativeTerritorialEntity, "located in the administrative territorial entity");
+      loadPropertyFromDump(@"c:\temp\locatedInTimeZone.tsv", items_, Item.setLocatedInTimeZone, "located in time zone");
 
       loadPropertyFromDump(@"c:\temp\propertySubpropertyOf.tsv", properties_, Property.setSubpropertyOf, "subproperty of");
 
@@ -579,6 +594,9 @@ namespace Nuvl
       item.instanceOf_ = setToArray(getPropertyValues(item, "instance of", line, 31));
       item.subclassOf_ = setToArray(getPropertyValues(item, "subclass of", line, 279));
       item.partOf_ = setToArray(getPropertyValues(item, "part of", line, 361));
+      item.location_ = setToArray(getPropertyValues(item, "location", line, 276));
+      item.locatedInTheAdministrativeTerritorialEntity_ = setToArray(getPropertyValues(item, "located in the administrative territorial entity", line, 131));
+      item.locatedInTimeZone_ = setToArray(getPropertyValues(item, "located in time zone", line, 421));
     }
 
     private static T[] setToArray<T>(HashSet<T> set)
