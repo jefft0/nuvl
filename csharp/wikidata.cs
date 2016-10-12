@@ -649,8 +649,11 @@ namespace Nuvl
           var iMatchEnd = match.Groups[0].Index + match.Groups[0].Length;
           if (value != ((Item)obj).Id)
             valueSet.Add(value);
-          else
-            messages_.Add("Item is " + propertyName + " itself: " + obj);
+          else {
+            // Unfortunately, all countries are country themself, so don't show.
+            if (propertyName != "country")
+              messages_.Add("Item is " + propertyName + " itself: " + obj);
+          }
         }
       }
 
