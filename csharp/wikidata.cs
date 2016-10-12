@@ -92,13 +92,13 @@ namespace Nuvl
       public HashSet<int> hasSubclass_ = null;
       public int[] partOf_ = null;
       public HashSet<int> hasPart_ = null;
-      public int[] location_ = null;
+      public int[] country_ = null;
       public int[] locatedInTheAdministrativeTerritorialEntity_ = null;
       public int[] locatedInTimeZone_ = null;
       public HashSet<int> debugRootClasses_ = null;
       public bool hasSubclassOfLoop_ = false;
       public bool hasPartOfLoop_ = false;
-      public bool hasLocationLoop_ = false;
+      public bool hasCountryLoop_ = false;
       public bool hasLocatedInTheAdministrativeTerritorialEntityLoop_ = false;
       private string label_;
       private bool labelHasId_ = false;
@@ -112,8 +112,8 @@ namespace Nuvl
       public static ICollection<int> getPartOf(Item item) { return item.partOf_; }
       public static void setPartOf(Item item, int[] values) { item.partOf_ = values; }
       public static ICollection<int> getHasPart(Item item) { return item.hasPart_; }
-      public static ICollection<int> getLocation(Item item) { return item.location_; }
-      public static void setLocation(Item item, int[] values) { item.location_ = values; }
+      public static ICollection<int> getCountry(Item item) { return item.country_; }
+      public static void setCountry(Item item, int[] values) { item.country_ = values; }
       public static ICollection<int> getLocatedInTheAdministrativeTerritorialEntity(Item item) { return item.locatedInTheAdministrativeTerritorialEntity_; }
       public static void setLocatedInTheAdministrativeTerritorialEntity(Item item, int[] values) { item.locatedInTheAdministrativeTerritorialEntity_ = values; }
       public static ICollection<int> getLocatedInTimeZone(Item item) { return item.locatedInTimeZone_; }
@@ -122,13 +122,13 @@ namespace Nuvl
       public delegate void SetHasLoop(Item item, bool hasLoop);
       public static void setHasSubclassOfLoop(Item item, bool hasLoop) { item.hasSubclassOfLoop_ = hasLoop; }
       public static void setHasPartOfLoop(Item item, bool hasLoop) { item.hasPartOfLoop_ = hasLoop; }
-      public static void setHasLocationLoop(Item item, bool hasLoop) { item.hasLocationLoop_ = hasLoop; }
+      public static void setHasCountryLoop(Item item, bool hasLoop) { item.hasCountryLoop_ = hasLoop; }
       public static void setHasLocatedInTheAdministrativeTerritorialEntityLoop(Item item, bool hasLoop) { item.hasLocatedInTheAdministrativeTerritorialEntityLoop_ = hasLoop; }
 
       public delegate bool GetHasLoop(Item item);
       public static bool getHasSubclassOfLoop(Item item) { return item.hasSubclassOfLoop_; }
       public static bool getHasPartOfLoop(Item item) { return item.hasPartOfLoop_; }
-      public static bool getHasLocationLoop(Item item) { return item.hasLocationLoop_; }
+      public static bool getHasCountryLoop(Item item) { return item.hasCountryLoop_; }
       public static bool getHasLocatedInTheAdministrativeTerritorialEntityLoop(Item item) { return item.hasLocatedInTheAdministrativeTerritorialEntityLoop_; }
     }
 
@@ -356,26 +356,22 @@ namespace Nuvl
     }
 
     public void
-    dumpFromGZip(string gzipFilePath)
+    dumpFromJson(string filePath)
     {
       var nLines = 0;
 
       var startTime = DateTime.Now;
       Console.Out.WriteLine(startTime);
-      using (var file = new FileStream(gzipFilePath, FileMode.Open, FileAccess.Read)) {
-        using (var gzip = new GZipStream(file, CompressionMode.Decompress)) {
-          using (var reader = new StreamReader(gzip /* , Encoding.ASCII */)) {
-            string line;
-            while ((line = reader.ReadLine()) != null) {
-              ++nLines;
-              if (nLines % 10000 == 0)
-                Console.Out.Write("\rnLines " + nLines);
+      using (var reader = new StreamReader(filePath)) {
+        string line;
+        while ((line = reader.ReadLine()) != null) {
+          ++nLines;
+          if (nLines % 10000 == 0)
+            Console.Out.Write("\rnLines " + nLines);
 
-              processLine(line, nLines);
-            }
-            Console.Out.WriteLine("");
-          }
+          processLine(line, nLines);
         }
+        Console.Out.WriteLine("");
       }
 
       Console.Out.WriteLine("elapsed " + (DateTime.Now - startTime));
@@ -405,7 +401,7 @@ namespace Nuvl
       dumpProperty(items_, Item.getInstanceOf, @"c:\temp\instanceOf.tsv");
       dumpProperty(items_, Item.getSubclassOf, @"c:\temp\subclassOf.tsv");
       dumpProperty(items_, Item.getPartOf, @"c:\temp\partOf.tsv");
-      dumpProperty(items_, Item.getLocation, @"c:\temp\location.tsv");
+      dumpProperty(items_, Item.getCountry, @"c:\temp\country.tsv");
       dumpProperty(items_, Item.getLocatedInTheAdministrativeTerritorialEntity, @"c:\temp\locatedInTheAdministrativeTerritorialEntity.tsv");
       dumpProperty(items_, Item.getLocatedInTimeZone, @"c:\temp\locatedInTimeZone.tsv");
 
@@ -495,7 +491,7 @@ namespace Nuvl
       loadPropertyFromDump(@"c:\temp\instanceOf.tsv", items_, Item.setInstanceOf, "instance of");
       loadPropertyFromDump(@"c:\temp\subclassOf.tsv", items_, Item.setSubclassOf, "subclass of");
       loadPropertyFromDump(@"c:\temp\partOf.tsv", items_, Item.setPartOf, "part of");
-      loadPropertyFromDump(@"c:\temp\location.tsv", items_, Item.setLocation, "location");
+      loadPropertyFromDump(@"c:\temp\country.tsv", items_, Item.setCountry, "country");
       loadPropertyFromDump(@"c:\temp\locatedInTheAdministrativeTerritorialEntity.tsv", items_, Item.setLocatedInTheAdministrativeTerritorialEntity, "located in the administrative territorial entity");
       loadPropertyFromDump(@"c:\temp\locatedInTimeZone.tsv", items_, Item.setLocatedInTimeZone, "located in time zone");
 
@@ -597,12 +593,15 @@ namespace Nuvl
       var item = new Item(id, enLabel);
       items_[id] = item;
 
-      item.instanceOf_ = setToArray(getPropertyValues(item, "instance of", line, 31));
-      item.subclassOf_ = setToArray(getPropertyValues(item, "subclass of", line, 279));
-      item.partOf_ = setToArray(getPropertyValues(item, "part of", line, 361));
-      item.location_ = setToArray(getPropertyValues(item, "location", line, 276));
-      item.locatedInTheAdministrativeTerritorialEntity_ = setToArray(getPropertyValues(item, "located in the administrative territorial entity", line, 131));
-      item.locatedInTimeZone_ = setToArray(getPropertyValues(item, "located in time zone", line, 421));
+
+      item.instanceOf_ = setToArray(getPropertyValues(item, "instance of", line, PinstanceOf));
+      item.subclassOf_ = setToArray(getPropertyValues(item, "subclass of", line, PsubclassOf));
+      item.partOf_ = setToArray(getPropertyValues(item, "part of", line, PpartOf));
+      item.country_ = setToArray(getPropertyValues(item, "country", line, Pcountry));
+      item.locatedInTheAdministrativeTerritorialEntity_ = setToArray
+        (getPropertyValues(item, "located in the administrative territorial entity", line, 
+         PlocatedInTheAdministrativeTerritorialEntity));
+      item.locatedInTimeZone_ = setToArray(getPropertyValues(item, "located in time zone", line, PlocatedInTimeZone));
     }
 
     private static T[] setToArray<T>(HashSet<T> set)
@@ -633,17 +632,21 @@ namespace Nuvl
     private HashSet<int>
     getPropertyValues(object obj, string propertyName, string line, int propertyId, bool objIsProperty)
     {
+      var qualifiersStart = ",\"qualifiers\":";
       var valueSet = new HashSet<int>();
 
       foreach (Match match in Regex.Matches
         (line, "\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P" + propertyId +
-        "\",\"datavalue\":{\"value\":{\"entity-type\":\"" + (objIsProperty ? "property" : "item") + 
-        "\",\"numeric-id\":(\\d+)")) {
+        "\",\"datavalue\":{\"value\":{\"entity-type\":\"" + (objIsProperty ? "property" : "item") +
+        "\",\"numeric-id\":(\\d+)" +
+        // If not objIsProperty, scan up to the beginning of possible qualifiers.
+        (objIsProperty ? "" : ",\"id\":\"Q\\d+\"},\"type\":\"wikibase-entityid\"},\"datatype\":\"wikibase-item\"},\"type\":\"statement\""))) {
         var value = Int32.Parse(match.Groups[1].Value);
         if (objIsProperty)
           // TODO: Check for property self reference.
           valueSet.Add(value);
         else {
+          var iMatchEnd = match.Groups[0].Index + match.Groups[0].Length;
           if (value != ((Item)obj).Id)
             valueSet.Add(value);
           else
@@ -781,5 +784,13 @@ namespace Nuvl
 
     public delegate void SetIntArray<T>(T obj, int[] values);
     public delegate ICollection<int> GetIntArray<T>(T obj);
+
+    public static readonly int QEntity = 35120;
+    public static readonly int PinstanceOf = 31;
+    public static readonly int PsubclassOf = 279;
+    public static readonly int PpartOf = 361;
+    public static readonly int Pcountry = 17;
+    public static readonly int PlocatedInTheAdministrativeTerritorialEntity = 131;
+    public static readonly int PlocatedInTimeZone = 421;
   }
 }
