@@ -33,53 +33,13 @@ namespace StoreBlobs
     static void
     Main(string[] args)
     {
-#if true // from blobs
-      var fileInventory0 = readFileInventory(blobInventoryFilePath_);
-      var videoInventory0 = getCameraVideoInventory(fileInventory0);
-
-      var debugAllBlobs = new Dictionary<string, string>();
-      var debugAllBlobYears = new Dictionary<string, int>();
-      var duplicates2013 = new Dictionary<string, object>();
-
-      foreach (var dayEntry in videoInventory0) {
-        foreach (var timeEntry in dayEntry.Value) {
-          foreach (var cameraEntry in timeEntry.Value) {
-            debugAllBlobYears[cameraEntry.Value.BlobName] = dayEntry.Key.Year;
-            string prefix = cameraEntry.Value.BlobName.Substring(0, 11);
-            if (debugAllBlobs.ContainsKey(prefix)) {
-              if (debugAllBlobYears[debugAllBlobs[prefix]] == 2013)
-                duplicates2013[debugAllBlobs[prefix]] = null;
-              if (debugAllBlobYears[cameraEntry.Value.BlobName] == 2013)
-                duplicates2013[cameraEntry.Value.BlobName] = null;
-            }
-            debugAllBlobs[prefix] = cameraEntry.Value.BlobName;
-          }
-        }
-      }
-
-      using (var file = new StreamWriter(@"c:\temp\temp.bat")) {
-        foreach (var dayEntry in videoInventory0) {
-          var day = dayEntry.Key;
-          if (day.Year != 2013)
-            continue;
-
-          foreach (var timeEntry in dayEntry.Value) {
-            var time = timeEntry.Key;
-
-            foreach (var cameraEntry in timeEntry.Value) {
-              var cameraNumber = cameraEntry.Key;
-              var blobName = cameraEntry.Value.BlobName;
-              if (duplicates2013.ContainsKey(blobName))
-                continue;
-
-              var base64 = blobName.Substring(7);
-              var blobFileSubPath = @"sha256\" +
-                blobUpperBang(base64.Substring(0, 2)) + @"\" +
-                blobUpperBang(base64.Substring(2, 2));
-              var blobFileDirectory = Path.Combine(oneDriveBlobsDirectoryPath_, blobFileSubPath);
-
-              file.WriteLine("rmdir /S /Q " + blobFileDirectory);
-            }
+#if false // Refresh the file inventory.
+      using (var output = new StreamWriter(filestoreInventoryFilePath_)) {
+        using (var file = new StreamReader(@"c:\temp\ls-files.out")) {
+          var line = "";
+          while ((line = file.ReadLine()) != null) {
+            var splitLine = line.Split(new char[] { ' ' });
+            output.WriteLine(splitLine[1] + "\t" + splitLine[0]);
           }
         }
       }
@@ -91,6 +51,7 @@ namespace StoreBlobs
       var now = DateTime.Now;
       var newVideoDates = storeNewVideos(videoInventory, now);
 
+#if false // Don't make HTML files.
       // Refresh the inventory.
       fileInventory = readFileInventory(filestoreInventoryFilePath_);
       videoInventory = getCameraVideoInventory(fileInventory);
@@ -114,6 +75,7 @@ namespace StoreBlobs
       }
 
       writeMainIndexPage(videoInventory, now);
+#endif
     }
 
     private static HashSet<DateTime>
@@ -152,10 +114,12 @@ namespace StoreBlobs
           date.ToString("yyyyMMdd") + "_" + time.ToString("hhmmss") + ".mp4");
         var toFileInfo = new FileInfo(Path.Combine(camerasDirectoryPath_, toFileSubPath));
 
+#if false // Don't copy to public/cameras.
         // Copy to public/cameras.
         if (!Directory.Exists(toFileInfo.DirectoryName))
           Directory.CreateDirectory(toFileInfo.DirectoryName);
         safeCopyFile(fileInfo.FullName, toFileInfo.FullName);
+#endif
 
         if (date.Year >= 2016) {
           // Sync to OneDrive.
@@ -166,11 +130,16 @@ namespace StoreBlobs
           fileInfo.CopyTo(toOneDriveFileInfo.FullName, true);
         }
 
-        // Add to IPFS.
+#if false // Don't add to IPFS
         Console.Out.Write(".");
+        var startTime = DateTime.Now;
         ipfsFilestoreAdd(toFileInfo.FullName);
+#else
+        // Update the inventory file.
+        File.AppendAllText(filestoreInventoryFilePath_, "omitted\t" + toFileInfo.FullName + "\r\n");
+#endif
 
-        Console.Out.WriteLine(" done");
+        Console.Out.WriteLine(" done.");
 
         newVideoDates.Add(date);
       }
@@ -178,6 +147,7 @@ namespace StoreBlobs
       return newVideoDates;
     }
 
+#if false // Don't add to IPFS
     /// <summary>
     /// Invoke "ipfs filestore add filePath" and update the inventory file.
     /// </summary>
@@ -190,7 +160,7 @@ namespace StoreBlobs
         StartInfo = new ProcessStartInfo
         {
           FileName = @"C:\work\go\bin\ipfs.exe",
-          Arguments = "filestore add \"" + filePath + "\"",
+          Arguments = "filestore add -q \"" + filePath + "\"",
           UseShellExecute = false,
           RedirectStandardOutput = true,
           CreateNoWindow = true
@@ -201,19 +171,20 @@ namespace StoreBlobs
 
       process.Start();
       while (!process.StandardOutput.EndOfStream) {
-        var line = process.StandardOutput.ReadLine().Trim();
-        var splitLine = line.Split(new char[] { ' ' });
-        if (splitLine.Length >= 2 && splitLine[0] == "added")
-          multihash = splitLine[1];
+        multihash = process.StandardOutput.ReadLine().Trim();
       }
 
-      if (multihash != null)
-        // Update the inventory file.
-        File.AppendAllText(filestoreInventoryFilePath_, multihash + "\t" + filePath + "\r\n");
+      if (multihash == null)
+        throw new Exception("No output from filestore add " + filePath);
+
+      // Update the inventory file.
+      File.AppendAllText(filestoreInventoryFilePath_, multihash + "\t" + filePath + "\r\n");
 
       return multihash;
     }
+#endif
 
+#if false // Don't copy to public/cameras.
     static void 
     safeCopyFile(string sourceFilePath, string toFilePath)
     {
@@ -224,6 +195,7 @@ namespace StoreBlobs
         File.Delete(toFilePath);
       File.Move(tempFilePath, toFilePath);
     }
+#endif
 
     /// <summary>
     /// Read inventoryFilePath and return the inventory.
@@ -311,6 +283,7 @@ namespace StoreBlobs
       return result;
     }
 
+#if false // Don't make HTML files.
     static string
     getMonthIndexPageFilePath(int year, int month)
     {
@@ -644,45 +617,18 @@ Videos for today, " + today.ToString("d MMMM, yyyy") + @":<br>
 ");
       }
     }
-
-    static void syncFile(FileInfo fromFileInfo, string toDirectoryPath)
-    {
-      var toFileInfo = new FileInfo(Path.Combine(toDirectoryPath, fromFileInfo.Name));
-      if (!toFileInfo.Exists) {
-        Directory.CreateDirectory(toDirectoryPath);
-        fromFileInfo.CopyTo(toFileInfo.FullName);
-      }
-    }
-
-    /**
-     * Replaces all upper-case characters C with C!. Windows filenames are
-     * case-insensitive, so this is used to make upper-case letters distinct.
-     */
-    static string blobUpperBang(string value)
-    {
-      var result = new StringBuilder();
-      foreach (var c in value) {
-        result.Append(c);
-        if (c >= 'A' && c <= 'Z')
-          result.Append('!');
-      }
-
-      return result.ToString();
-    }
+#endif
 
     static string publicDirectoryPath_ = @"C:\public";
     static string camerasDirectoryPath_ = Path.Combine(publicDirectoryPath_, "cameras");
-    static string blobsDirectoryPath_ = Path.Combine(publicDirectoryPath_, "blobs");
-    static string blobInventoryFilePath_ = Path.Combine(blobsDirectoryPath_, "inventory.tsv");
     static string oneDrivePublicDirectoryPath_ = @"C:\Users\jeff\OneDrive\public";
     static string oneDriveCamerasDirectoryPath_ = Path.Combine(oneDrivePublicDirectoryPath_, "cameras");
-    static string oneDriveBlobsDirectoryPath_ = Path.Combine(oneDrivePublicDirectoryPath_, "blobs");
-    static string oneDriveInventoryFilePath_ = Path.Combine(oneDriveBlobsDirectoryPath_, "inventory.tsv");
     static string ipfsConfigDirectoryPath_ = @"C:\Users\jeff\.ipfs";
     static string filestoreInventoryFilePath_ = Path.Combine(ipfsConfigDirectoryPath_, "filestoreInventory.tsv");
-    static string tempDirectoryPath_ = @"C:\temp";
+#if false // Don't make HTML files.
     static string wwwrootDirectoryPath_ = @"C:\inetpub\wwwroot";
     static string videosIndexPagePath_ = Path.Combine(wwwrootDirectoryPath_, "videos-index.html");
+#endif
     static Regex cameraFileNameRegex_ = new Regex("^camera(\\d{1})\\.(\\d{4})(\\d{2})(\\d{2})_(\\d{2})(\\d{2})(\\d{2})\\.(mp4|avi)$");
     // The key is a filename extension like "mp4". The value is a content type like "video/mp4".
     static Dictionary<string, string> contentTypes_ = new Dictionary<string, string>() { { "mp4", "video/mp4" }, { "avi", "video/avi" } };
