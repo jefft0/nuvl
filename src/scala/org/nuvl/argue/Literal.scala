@@ -30,11 +30,6 @@
 
 package org.nuvl.argue
 
-import org.nuvl.argue.Literal.Literal
-
-object Rule {
-  type Rule = (Set[Literal], Literal)
-
-  def make(body: Set[Literal], head: Literal): Rule = (body, head)
-  def make(body: Literal, head: Literal): Rule = (Set(body), head)
+object Literal {
+  type Literal = String
 }
