@@ -19,8 +19,6 @@ limitations under the License.
 package org.nuvl.argue.aba_plus
 
 // https://github.com/zb95/2016-ABAPlus/blob/4b189ec939d3033dd5100c20ce2fde2f94ad51ae/aba_plus_.py#L450
-case class Sentence(symbol: String, is_contrary: Boolean) {
-  def this(symbol: String) = this(symbol, false)
-
+case class Sentence(symbol: String, is_contrary: Boolean = false) {
   def contrary() = Sentence(symbol, !is_contrary)
 }

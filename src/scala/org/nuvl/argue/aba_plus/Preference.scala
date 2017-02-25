@@ -29,15 +29,9 @@ case object NO_RELATION extends PreferenceRelation
  * https://github.com/zb95/2016-ABAPlus/blob/4b189ec939d3033dd5100c20ce2fde2f94ad51ae/aba_plus_.py#L472
  * @param assump1 The first Sentence.
  * @param assump2 The second Sentence.
- * @param relation LESS_THAN, LESS_EQUAL or NO_RELATION.
+ * @param relation (optional) LESS_THAN, LESS_EQUAL or NO_RELATION. If omitted,
+ * use NO_RELATION.
  */
 case class Preference
-    (assump1: Sentence, assump2: Sentence, relation: PreferenceRelation) {
-  /**
-   * Create a Preference where the relation is NO_RELATION.
-   * @param assump1 The first Sentence.
-   * @param assump2 The second Sentence.
-   */
-  def this(assump1: Sentence, assump2: Sentence) =
-    this(assump1, assump2, NO_RELATION)
-}
+    (assump1: Sentence, assump2: Sentence, 
+     relation: PreferenceRelation = NO_RELATION) {}
