@@ -31,4 +31,4 @@ case object REVERSE_ATK extends AttackType
  * of the attacker.
  * @param type NORMAL_ATK or REVERSE_ATK.
  */
-case class Attack(attacker: Deduction, attackee: Deduction, typ: AttackType) {}
+case class Attack(attacker: Deduction, attackee: Deduction, typ: AttackType)

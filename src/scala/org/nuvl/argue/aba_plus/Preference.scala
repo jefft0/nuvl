@@ -34,4 +34,4 @@ case object NO_RELATION extends PreferenceRelation
  */
 case class Preference
     (assump1: Sentence, assump2: Sentence, 
-     relation: PreferenceRelation = NO_RELATION) {}
+     relation: PreferenceRelation = NO_RELATION)

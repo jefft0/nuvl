@@ -19,4 +19,4 @@ limitations under the License.
 package org.nuvl.argue.aba_plus
 
 // https://github.com/zb95/2016-ABAPlus/blob/4b189ec939d3033dd5100c20ce2fde2f94ad51ae/aba_plus_.py#L517
-case class Deduction(premise: Set[Sentence], conclusion: Set[Sentence]) {}
+case class Deduction(premise: Set[Sentence], conclusion: Set[Sentence])
