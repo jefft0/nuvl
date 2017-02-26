@@ -18,9 +18,9 @@ limitations under the License.
 
 package org.nuvl.argue.aba_plus
 
-sealed abstract class AttackType
-case object NORMAL_ATK extends AttackType
-case object REVERSE_ATK extends AttackType
+object AttackType extends Enumeration {
+  val NORMAL_ATK, REVERSE_ATK = Value
+}
 
 /**
  * Create an Attack between Deductions.
@@ -29,6 +29,6 @@ case object REVERSE_ATK extends AttackType
  * of the attackee.
  * @param attackee A Deduction whose premise is the contrary of the conclusion 
  * of the attacker.
- * @param type NORMAL_ATK or REVERSE_ATK.
+ * @param type AttackType.NORMAL_ATK or AttackType.REVERSE_ATK.
  */
-case class Attack(attacker: Deduction, attackee: Deduction, typ: AttackType)
+case class Attack(attacker: Deduction, attackee: Deduction, typ: AttackType.Value)

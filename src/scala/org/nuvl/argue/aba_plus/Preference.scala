@@ -18,10 +18,9 @@ limitations under the License.
 
 package org.nuvl.argue.aba_plus
 
-sealed abstract class PreferenceRelation
-case object LESS_THAN extends PreferenceRelation
-case object LESS_EQUAL extends PreferenceRelation
-case object NO_RELATION extends PreferenceRelation
+object PreferenceRelation extends Enumeration {
+  val LESS_THAN, LESS_EQUAL, NO_RELATION = Value
+}
 
 /**
  * Create a Preference between two Sentences.
@@ -33,5 +32,5 @@ case object NO_RELATION extends PreferenceRelation
  * use NO_RELATION.
  */
 case class Preference
-    (assump1: Sentence, assump2: Sentence, 
-     relation: PreferenceRelation = NO_RELATION)
+  (assump1: Sentence, assump2: Sentence, 
+   relation: PreferenceRelation.Value = PreferenceRelation.NO_RELATION)
