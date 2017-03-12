@@ -1,0 +1,21 @@
+# Compiled files
+*.class
+/build
+/dist
+/target
+/examples/target
+
+# JUnit output
+/TEST*.xml
+
+# Javadoc output
+/doc
+
+# Mac OSX
+.DS_Store
+
+# Emacs temp files
+*~
+
+# Netbeans configuration
+nb-configuration.xml
