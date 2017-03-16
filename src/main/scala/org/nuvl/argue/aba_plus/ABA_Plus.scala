@@ -162,6 +162,105 @@ case class ABA_Plus
       results
     }
   }
+
+  /**
+   * Generate arguments supporting generate_for and all attacks between the
+   * arguments.
+   * @param generate_for A set of Sentences.
+   * @return The tuple (deductions, attacks, all_deductions) where
+   * deductions is a map that maps sentences to sets of Deductions that deduce them,
+   * attacks is A set of all attacks generated, and
+   * all_deductions is a set of all Deductions generated.
+   */
+  def generate_arguments_and_attacks(generate_for: Set[Sentence]) = {
+    val deductions = mutable.Map[Sentence, Set[Deduction]]()
+    val attacks = mutable.Set[Attack]()
+    // This maps attackees to attackers in normal attacks.
+    val atk_map = mutable.Map[Sentence, mutable.Set[Set[Sentence]]]()
+    // This maps attackees to attackers in reverse attacks.
+    val reverse_atk_map = mutable.Map[Set[Sentence], mutable.Set[Sentence]]()
+
+    // Generate trivial deductions for all assumptions.
+    for (assumption <- assumptions)
+      deductions(assumption) = Set(Deduction(Set(assumption), Set(assumption)))
+
+    // Generate supporting assumptions.
+    for (sentence <- generate_for) {
+      val args = generate_arguments(sentence)
+      if (!args.isEmpty) {
+        deductions(sentence) = Set()
+
+        for (arg <- args) {
+          val arg_deduction = Deduction(arg, Set(sentence))
+          deductions(sentence) += arg_deduction
+
+          if (sentence.is_contrary && (assumptions contains sentence.contrary())) {
+            val trivial_arg = Deduction(
+              Set(sentence.contrary()), Set(sentence.contrary()))
+
+            if (attack_successful(arg, sentence.contrary())) {
+              attacks += Attack(arg_deduction, trivial_arg, AttackType.NORMAL_ATK)
+
+              val f_arg = arg
+              if (!(atk_map contains sentence.contrary()))
+                atk_map(sentence.contrary()) = mutable.Set()
+              atk_map(sentence.contrary()) += f_arg
+            }
+            else {
+              attacks += Attack(trivial_arg, arg_deduction, AttackType.REVERSE_ATK)
+
+              val f_arg = arg
+              if (!(reverse_atk_map contains f_arg))
+                reverse_atk_map(f_arg) = mutable.Set()
+              reverse_atk_map(f_arg) += sentence.contrary()
+            }
+          }
+        }
+      }
+    }
+
+    val all_deductions = mutable.Set[Deduction]()
+    for (x <- deductions.values)
+      all_deductions ++= x
+
+    for ((n_attackee, n_attacker_sets) <- atk_map) {
+      val attackees = all_deductions.filter(_.premise contains n_attackee)
+      for (n_attacker <- n_attacker_sets) {
+        val attackers = all_deductions.filter(n_attacker subsetOf _.premise)
+        for (attackee <- attackees) {
+          for (attacker <- attackers)
+            attacks += Attack(attacker, attackee, AttackType.NORMAL_ATK)
+        }
+      }
+    }
+
+    for ((r_attackee, r_attacker_sets) <- reverse_atk_map) {
+      val attackees = all_deductions.filter(r_attackee subsetOf _.premise)
+      for (r_attacker <- r_attacker_sets) {
+        val attackers = all_deductions.filter(_.premise contains r_attacker)
+        for (attackee <- attackees) {
+          for (attacker <- attackers)
+            attacks += Attack(attacker, attackee, AttackType.REVERSE_ATK)
+        }
+      }
+    }
+
+    (deductions.toMap, attacks.toSet, all_deductions.toSet)
+  }
+
+  def generate_arguments_and_attacks_for_contraries =
+    generate_arguments_and_attacks(assumptions.map(asm => asm.contrary()))
+
+  /**
+   * Check if attacker attacks attackee successfully,
+   * @param attacker A set of Sentences.
+   * @param attackee A Sentence.
+   * @return True if attacker attacks attackee successfully, false otherwise.
+   */
+  def attack_successful(attacker: Set[Sentence], attackee: Sentence) =
+    !attacker.exists(is_preferred(attackee, _))
+
+  // TODO: attacking_sentences_less_than_attackee (appaently unused)
 }
 
 case class CyclicPreferenceException(message: String = "", cause: Throwable = null)
