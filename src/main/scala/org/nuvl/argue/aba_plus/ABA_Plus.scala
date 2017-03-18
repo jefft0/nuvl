@@ -36,7 +36,11 @@ final class ABA_Plus
 
   // Note that this throws CyclicPreferenceException if needed.
   val preferences: Set[Preference] =
-    preferencesIn union ABA_Plus.calc_transitive_closure(assumptions, preferencesIn)
+    if (preferencesIn.isEmpty)
+      // In this simple case, avoid calling calc_transitive_closure.
+      preferencesIn
+    else
+      preferencesIn union ABA_Plus.calc_transitive_closure(assumptions, preferencesIn)
 
   if (!preferences_only_between_assumptions())
     throw InvalidPreferenceException("Non-assumption in preference detected!")
@@ -96,7 +100,33 @@ final class ABA_Plus
     get_relation(assump2, assump1) == PreferenceRelation.LESS_THAN
 
   // TODO: deduction_exists
-  // TODO: generate_all_deductions
+
+  /**
+   * Get all Sentences that can be derived from deduce_from.
+   * @param deduce_from A set of Sentences.
+   * @return A set of all Sentences that can be derived from deduce_from.
+   */
+  def generate_all_deductions(deduce_from: Set[Sentence]) = {
+    val rules_applied = mutable.Set[Rule]()
+    val deduced = mutable.Set[Sentence]()
+    deduced ++= deduce_from
+    var new_rule_used = true
+    while (new_rule_used) {
+      new_rule_used = false
+      for (rule <- rules) {
+        if (!(rules_applied contains rule)) {
+          if (rule.antecedent subsetOf deduced) {
+            new_rule_used = true
+            deduced += rule.consequent
+            rules_applied += rule
+          }
+        }
+      }
+    }
+
+    deduced.toSet
+  }
+
   // TODO: check_WCP
   // TODO: check_and_partially_satisfy_WCP
   // TODO: _WCP_fulfilled
@@ -287,7 +317,8 @@ object ABA_Plus {
    * @throws CyclicPreferenceException if a cycle in preference relations is
    * detected.
    */
-  def calc_transitive_closure(assumptions: Set[Sentence], preferences: Set[Preference]) = {
+  private def calc_transitive_closure
+    (assumptions: Set[Sentence], preferences: Set[Preference]) = {
     val extraPreferences = mutable.Set[Preference]()
 
     val assump_list = assumptions.toArray
