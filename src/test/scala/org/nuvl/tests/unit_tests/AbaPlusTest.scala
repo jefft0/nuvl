@@ -52,12 +52,115 @@ class AbaPlusTest extends FunSuite with Matchers {
            Set(pref1, pref2, Preference(a, c, PreferenceRelation.LESS_THAN)))
   }
 
-  // TODO: test_simple_deduction_exists
-  // TODO: test_simple_deduction_does_not_exist
-  // TODO: test_transitive_deduction_exists
-  // TODO: test_transitive_deduction_from_empty_set_exists
-  // TODO: test_complex_deduction_exists
-  // TODO: test_complex_deduction_does_not_exist
+  test("test_simple_deduction_exists") {
+    val a = Sentence("a")
+    val b = Sentence("b")
+    val assumptions = Set(b)
+
+    val rule = Rule(Set(b), a)
+    val rules = Set(rule)
+
+    val abap = new ABA_Plus(assumptions, Set(), rules)
+
+    assert(abap.deduction_exists(a, Set(b)))
+  }
+
+  test("test_deduction_from_empty_set_exists") {
+    val a = Sentence("a")
+    val b = Sentence("b")
+    val assumptions = Set(b)
+
+    val rule = Rule(Set(), a)
+    val rules = Set(rule)
+
+    val abap = new ABA_Plus(assumptions, Set(), rules)
+
+    assert(abap.deduction_exists(a, Set()))
+  }
+
+  test("test_simple_deduction_does_not_exist") {
+    val a = Sentence("a")
+    val b = Sentence("b")
+    val c = Sentence("c")
+    val assumptions = Set(a, b)
+
+    val rule = Rule(Set(b), c)
+    val rules = Set(rule)
+
+    val abap = new ABA_Plus(assumptions, Set(), rules)
+
+    assert(!abap.deduction_exists(a, Set(b)))
+  }
+
+  test("test_transitive_deduction_exists") {
+    val a = Sentence("a")
+    val b = Sentence("b")
+    val c = Sentence("c")
+    val assumptions = Set(b)
+
+    val rule1 = Rule(Set(b), c)
+    val rule2 = Rule(Set(c), a)
+    val rules = Set(rule1, rule2)
+
+    val abap = new ABA_Plus(assumptions, Set(), rules)
+
+    assert(abap.deduction_exists(a, Set(b)))
+  }
+
+  test("test_transitive_deduction_from_empty_set_exists") {
+    val a = Sentence("a")
+    val b = Sentence("b")
+    val assumptions = Set[Sentence]()
+
+    val rule1 = Rule(Set(b), a)
+    val rule2 = Rule(Set(), b)
+    val rules = Set(rule1, rule2)
+
+    val abap = new ABA_Plus(assumptions, Set(), rules)
+
+    assert(abap.deduction_exists(a, Set()))
+  }
+
+  test("test_complex_deduction_exists") {
+    val a = Sentence("a")
+    val b = Sentence("b")
+    val c = Sentence("c")
+    val d = Sentence("d")
+    val e = Sentence("e")
+    val f = Sentence("f")
+    val g = Sentence("g")
+    val assumptions = Set(a, b, e)
+
+    val rule1 = Rule(Set(a, b), c)
+    val rule2 = Rule(Set(e), f)
+    val rule3 = Rule(Set(c, f), g)
+    val rules = Set(rule1, rule2, rule3)
+
+    val abap = new ABA_Plus(assumptions, Set(), rules)
+
+    assert(abap.deduction_exists(g, Set(a, b, e)))
+  }
+
+  test("test_complex_deduction_does_not_exist") {
+    val a = Sentence("a")
+    val b = Sentence("b")
+    val c = Sentence("c")
+    val d = Sentence("d")
+    val e = Sentence("e")
+    val f = Sentence("f")
+    val g = Sentence("g")
+    val assumptions = Set(a, b, e)
+
+    val rule1 = Rule(Set(a, b), c)
+    val rule2 = Rule(Set(e), f)
+    val rule3 = Rule(Set(c, f), g)
+    val rules = Set(rule1, rule2, rule3)
+
+    val abap = new ABA_Plus(assumptions, Set(), rules)
+
+    assert(!abap.deduction_exists(g, Set(a, e)))
+  }
+
   // TODO: disabled_test_simple_WCP_no_violation_check1
   // TODO: disabled_test_simple_WCP_no_violation_check2
   // TODO: disabled_test_simple_WCP_no_violation_check3
