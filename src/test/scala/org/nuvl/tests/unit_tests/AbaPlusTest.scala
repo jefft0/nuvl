@@ -417,4 +417,27 @@ class AbaPlusTest extends FunSuite with Matchers {
        Attack(ded_contr_c, ded_contr_b, AttackType.REVERSE_ATK),
        Attack(ded_contr_c, ded_contr_b, AttackType.NORMAL_ATK)))
   }
+
+  test("test_generate_all_deductions") {
+    val a = Sentence("a")
+    val b = Sentence("b")
+    val c = Sentence("c")
+    val e = Sentence("e")
+    val f = Sentence("f")
+    val g = Sentence("g")
+    val assumptions = Set(a, b, e)
+
+    val rule1 = Rule(Set(a, b), c)
+    val rule2 = Rule(Set(e), f)
+    val rule3 = Rule(Set(c, f), g)
+    val rules = Set(rule1, rule2, rule3)
+
+    val pref1 = Preference(a, b, PreferenceRelation.LESS_THAN)
+    val pref2 = Preference(c, b, PreferenceRelation.LESS_THAN)
+    val preferences = Set(pref1, pref2)
+
+    val abap = new ABA_Plus(assumptions, Set(), rules)
+
+    assert(abap.generate_all_deductions(Set(a,b,e)) == Set(a,b,c,e,f,g))
+  }
 }
