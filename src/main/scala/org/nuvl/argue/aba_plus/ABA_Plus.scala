@@ -22,21 +22,24 @@ import scala.collection.mutable
 
 /**
  * ABA_Plus represents an ABA+ framework and its components (assumptions, rules
- * and preferences).
+ * and preferences). Note that the set of preferences stored in this object is
+ * the transitive closure of preferencesIn. Also note that this class doesn't
+ * define member-wise equality and can't be used as a map key.'
  * https://github.com/zb95/2016-ABAPlus/blob/f619e7a982d3b19a76ed64bb5fe5dd11b22dad72/aba_plus_.py#L32
  */
-case class ABA_Plus
-  (assumptions: Set[Sentence], preferences: Set[Preference], rules: Set[Rule]) {
+final class ABA_Plus
+  (val assumptions: Set[Sentence], preferencesIn: Set[Preference], val rules: Set[Rule]) {
   import ABA_Plus._
 
   if (!is_flat())
     throw NonFlatException("The framework is not flat!")
 
+  // Note that this throws CyclicPreferenceException if needed.
+  val preferences: Set[Preference] =
+    preferencesIn union ABA_Plus.calc_transitive_closure(assumptions, preferencesIn)
+
   if (!preferences_only_between_assumptions())
     throw InvalidPreferenceException("Non-assumption in preference detected!")
-
-  if (!calc_transitive_closure())
-    throw CyclicPreferenceException("Cycle in preferences detected!")
 
   // TODO: check_or_auto_WCP
 
@@ -55,21 +58,6 @@ case class ABA_Plus
   def preferences_only_between_assumptions() =
     !preferences.exists(pref => !(assumptions contains pref.assump1) ||
                                 !(assumptions contains pref.assump2))
-
-  /**
-   * Calculate the transitive closure of preference relations. Add the result of
-   * calculation to the framework, if no error occurs.
-   * https://github.com/zb95/2016-ABAPlus/blob/f619e7a982d3b19a76ed64bb5fe5dd11b22dad72/aba_plus_.py#L93
-   * @return True if no cycle in preference relations is detected, false otherwise.
-   */
-  def calc_transitive_closure() = {
-    // TODO: Implement.
-    if (!preferences.isEmpty)
-      throw new UnsupportedOperationException("calc_transitive_closure is not implemented")
-    true
-  }
-
-  // TODO: _transitive_closure
 
   /**
    * Get the set of all rules deriving the sentence.
@@ -276,15 +264,86 @@ case class WCPViolationException(message: String = "", cause: Throwable = null)
   extends Exception(message, cause)
 
 object ABA_Plus {
-  def debug1() =
-/*
-    ABA_Plus(Set(Sentence("c"), Sentence("d")),
-             Set(),
-             Set(Rule(Set(), Sentence("a")),
-                 Rule(Set(), Sentence("b")))).is_flat()
-*/
-    set_combinations(Set(mutable.Set(Set("b")),
-                         mutable.Set(Set("e"), Set("f"))))
+  def debug1() = {
+    new ABA_Plus(Set(Sentence("c"), Sentence("d")),
+                 Set(),
+                 Set(Rule(Set(), Sentence("a")),
+                     Rule(Set(), Sentence("b")))).is_flat()
+  }
+
+  /**
+   * Calculate the transitive closure of preference relations. These should be
+   * added to the given set of preferences.
+   * Note that the Python implementation directly modifies the ABA_Plus set of
+   * preferences, but this is a static method to return a set of Preferences to
+   * be added. The reason is that the ABA_Plus set of preferences is immutable,
+   * so we form the union in the ABA_Plus constructor. Also, instead of
+   * returning false for a detected cycle, we throw the
+   * CyclicPreferenceException here.
+   * https://github.com/zb95/2016-ABAPlus/blob/a8bfcfcfa3092f0aca7aa08e5f1b06545730f270/aba_plus_.py#L93
+   * @param assumptions The set of Assumptions.
+   * @param preferences The set of Preferences.
+   * @return The set of extra Preferences to create the transitive closure.
+   * @throws CyclicPreferenceException if a cycle in preference relations is
+   * detected.
+   */
+  def calc_transitive_closure(assumptions: Set[Sentence], preferences: Set[Preference]) = {
+    val extraPreferences = mutable.Set[Preference]()
+
+    val assump_list = assumptions.toArray
+    val m = assump_list.size
+    val relation_matrix = full(m, m, PreferenceRelation.NO_RELATION)
+    fill_diagonal(relation_matrix, PreferenceRelation.LESS_EQUAL)
+    for (pref <- preferences) {
+      val idx1 = assump_list.indexOf(pref.assump1)
+      val idx2 = assump_list.indexOf(pref.assump2)
+      relation_matrix(idx1)(idx2) = pref.relation
+    }
+
+    val closed_matrix = _transitive_closure(relation_matrix)
+
+    for {i <- 0 until m
+         j <- 0 until m} {
+      var relation = closed_matrix(i)(j)
+      // Cycle detected.
+      if (i == j && relation == PreferenceRelation.LESS_THAN)
+        throw CyclicPreferenceException("Cycle in preferences detected!")
+      if (i != j && relation != PreferenceRelation.NO_RELATION) {
+        val assump1 = assump_list(i)
+        val assump2 = assump_list(j)
+        extraPreferences += Preference(assump1, assump2, relation)
+      }
+    }
+
+    extraPreferences
+  }
+
+  /**
+   * Calculate the transitive closure given the relation matrix.
+   * https://github.com/zb95/2016-ABAPlus/blob/a8bfcfcfa3092f0aca7aa08e5f1b06545730f270/aba_plus_.py#L123
+   * @param relation_matrix: The relation matrix, with 
+   * PreferenceRelation.LESS_THAN and PreferenceRelation.LESS_EQUAL.
+   * @return A new relation matrix of the transitive closure.
+   */
+  private def _transitive_closure
+    (relation_matrix: Array[Array[PreferenceRelation.Value]]) = {
+    val n = relation_matrix.size
+    val d = copy(relation_matrix)
+
+    for {k <- 0 until n
+         i <- 0 until n
+         j <- 0 until n} {
+      var alt_rel = PreferenceRelation.NO_RELATION
+      if (!(d(i)(k) == PreferenceRelation.NO_RELATION ||
+            d(k)(j) == PreferenceRelation.NO_RELATION))
+        alt_rel = if (d(i)(k) < d(k)(j)) d(i)(k) else d(k)(j)
+
+      if (alt_rel < d(i)(j))
+        d(i)(j) = alt_rel
+    }
+
+    d
+  }
 
   /**
    * Compute all combinations of sets of sets. For example:
@@ -313,4 +372,38 @@ object ABA_Plus {
     }
     else
       mutable.Set()
+
+  /**
+   * Imitate numpy.full to create a matrix with an initial value.
+   * @param nRows The number of rows.
+   * @param nColumns The number of columns.
+   * @param initialValue The initial value.
+   * @return A new matrix (2D array).
+   */
+  def full[T : Manifest](nRows: Int, nColumns: Int, initialValue: T) = {
+    val matrix = Array.ofDim[T](nRows, nColumns)
+    for {row <- 0 until nRows
+         col <- 0 until nColumns}
+      matrix(row)(col) = initialValue
+      
+    matrix
+  }
+
+  /**
+   * Imitate numpy.copy to return a copy of the matrix.
+   * @param matrix The matrix.
+   * @return A new matrix (2D array).
+   */
+  def copy[T](matrix: Array[Array[T]]) = matrix.map(_.clone)
+
+  /**
+   * Imitate numpy.fill_diagonal to modify the matrix in place to set the
+   * diagonal members to the given value.
+   * @param matrix The matrix.
+   * @param value The value for the diagonal.
+   */
+  def fill_diagonal[T](matrix: Array[Array[T]], value: T) = {
+    for (i <- 0 until matrix.size)
+      matrix(i)(i) = value
+  }
 }
