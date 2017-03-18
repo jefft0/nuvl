@@ -37,7 +37,21 @@ import org.scalatest.Assertions._
  */
 @RunWith(classOf[JUnitRunner])
 class AbaPlusTest extends FunSuite with Matchers {
-  // TODO: test_simple_transitive_closure
+  test("test_simple_transitive_closure") {
+    val a = Sentence("a")
+    val b = Sentence("b")
+    val c = Sentence("c")
+    val assumptions = Set(a, b, c)
+
+    val pref1 = Preference(a, b, PreferenceRelation.LESS_THAN)
+    val pref2 = Preference(b, c, PreferenceRelation.LESS_THAN)
+    val preferences = Set(pref1, pref2)
+
+    val abap = new ABA_Plus(assumptions, preferences, Set())
+    assert(abap.preferences ==
+           Set(pref1, pref2, Preference(a, c, PreferenceRelation.LESS_THAN)))
+  }
+
   // TODO: test_simple_deduction_exists
   // TODO: test_simple_deduction_does_not_exist
   // TODO: test_transitive_deduction_exists
