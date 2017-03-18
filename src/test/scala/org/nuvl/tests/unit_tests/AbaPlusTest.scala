@@ -21,6 +21,7 @@ package org.nuvl.tests.unit_tests
 import org.scalatest._
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
+import scala.collection.mutable
 import org.nuvl.argue.aba_plus.ABA_Plus
 import org.nuvl.argue.aba_plus.Attack
 import org.nuvl.argue.aba_plus.AttackType
@@ -174,7 +175,27 @@ class AbaPlusTest extends FunSuite with Matchers {
   // TODO: test_complex_WCP_no_violation_check2
   // TODO: test_check_and_partially_satisfy_WCP
   // TODO: test_check_and_partially_satisfy_WCP2
-  // TODO: test_set_combinations
+
+  test("test_set_combinations") {
+    var set1 = mutable.Set[Set[String]]()
+    set1 += Set("b")
+
+    var set2 = mutable.Set[Set[String]]()
+    set2 += Set("e")
+    set2 += Set("f")
+
+    var set3 = mutable.Set[Set[String]]()
+    set3 += Set("g")
+
+    var set4 = mutable.Set[Set[String]]()
+    set4 += Set("i")
+    set4 += Set("k")
+
+    val combs = ABA_Plus.set_combinations(Set(set1, set2, set3, set4))
+    val correct_combs = mutable.Set(Set("b", "e", "g", "i"), Set("b", "e", "g", "k"),
+                                    Set("b", "f", "g", "i"), Set("b", "f", "g", "k"))
+    assert(combs == correct_combs)
+  }
 
   test("test_simple_generate_argument1") {
     val a = Sentence("a")
