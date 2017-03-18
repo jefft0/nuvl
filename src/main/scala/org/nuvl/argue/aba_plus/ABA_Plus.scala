@@ -99,7 +99,33 @@ final class ABA_Plus
   def is_preferred(assump1: Sentence, assump2: Sentence) =
     get_relation(assump2, assump1) == PreferenceRelation.LESS_THAN
 
-  // TODO: deduction_exists
+  def deduction_exists(to_deduce: Sentence, deduce_from: Set[Sentence]) = {
+    val rules_applied = mutable.Set[Rule]()
+    val deduced = mutable.Set[Sentence]()
+    deduced ++= deduce_from
+    var new_rule_used = true
+    var found_deduction = false
+    while (!found_deduction && new_rule_used) {
+      new_rule_used = false
+      // Use exists to quit when found_deduction is true.
+      found_deduction = rules.exists(rule => {
+        if (!(rules_applied contains rule)) {
+          if (rule.antecedent subsetOf deduced) {
+            new_rule_used = true
+            if (rule.consequent == to_deduce)
+              found_deduction = true
+            else
+              deduced += rule.consequent
+            rules_applied += rule
+          }
+        }
+
+        found_deduction
+      })
+    }
+
+    found_deduction
+  }
 
   /**
    * Get all Sentences that can be derived from deduce_from.
