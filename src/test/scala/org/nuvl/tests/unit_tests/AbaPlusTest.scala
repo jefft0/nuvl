@@ -22,6 +22,11 @@ import org.scalatest._
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.nuvl.argue.aba_plus.ABA_Plus
+import org.nuvl.argue.aba_plus.Attack
+import org.nuvl.argue.aba_plus.AttackType
+import org.nuvl.argue.aba_plus.Deduction
+import org.nuvl.argue.aba_plus.Preference
+import org.nuvl.argue.aba_plus.PreferenceRelation
 import org.nuvl.argue.aba_plus.Rule
 import org.nuvl.argue.aba_plus.Sentence
 import org.scalatest.Assertions._
@@ -58,7 +63,7 @@ class AbaPlusTest extends FunSuite with Matchers {
     val a = Sentence("a")
     val assumptions = Set(a)
 
-    val abap = ABA_Plus(assumptions, Set(), Set())
+    val abap = new ABA_Plus(assumptions, Set(), Set())
 
     assert(abap.generate_arguments(a) == Set(Set(a)))
   }
@@ -72,7 +77,7 @@ class AbaPlusTest extends FunSuite with Matchers {
     val rule = Rule(Set(b, c), a)
     val rules = Set(rule)
 
-    val abap = ABA_Plus(assumptions, Set(), rules)
+    val abap = new ABA_Plus(assumptions, Set(), rules)
 
     assert(abap.generate_arguments(a) == Set(Set(b, c)))
   }
@@ -83,7 +88,7 @@ class AbaPlusTest extends FunSuite with Matchers {
     val rule = Rule(Set(), a)
     val rules = Set(rule)
 
-    val abap = ABA_Plus(Set(), Set(), rules)
+    val abap = new ABA_Plus(Set(), Set(), rules)
 
     assert(abap.generate_arguments(a) == Set(Set()))
   }
@@ -100,7 +105,7 @@ class AbaPlusTest extends FunSuite with Matchers {
     val rule2 = Rule(Set(c, d), e)
     val rules = Set(rule1, rule2)
 
-    val abap = ABA_Plus(assumptions, Set(), rules)
+    val abap = new ABA_Plus(assumptions, Set(), rules)
 
     assert(abap.generate_arguments(a) == Set(Set(b, c, d)))
   }
@@ -118,7 +123,7 @@ class AbaPlusTest extends FunSuite with Matchers {
     val rule3 = Rule(Set(e), c)
     val rules = Set(rule1, rule2, rule3)
 
-    val abap = ABA_Plus(assumptions, Set(), rules)
+    val abap = new ABA_Plus(assumptions, Set(), rules)
 
     assert(abap.generate_arguments(a) == Set(Set(b, d), Set(b, e)))
   }
@@ -132,7 +137,7 @@ class AbaPlusTest extends FunSuite with Matchers {
     val rule2 = Rule(Set(), a)
     val rules = Set(rule1, rule2)
 
-    val abap = ABA_Plus(assumptions, Set(), rules)
+    val abap = new ABA_Plus(assumptions, Set(), rules)
 
     assert(abap.generate_arguments(a) == Set(Set(), Set(b)))
   }
@@ -149,7 +154,7 @@ class AbaPlusTest extends FunSuite with Matchers {
     val rule3 = Rule(Set(d), c)
     val rules = Set(rule1, rule2, rule3)
 
-    val abap = ABA_Plus(assumptions, Set(), rules)
+    val abap = new ABA_Plus(assumptions, Set(), rules)
 
     assert(abap.generate_arguments(a) == Set(Set(b), Set(b, d)))
   }
@@ -163,7 +168,7 @@ class AbaPlusTest extends FunSuite with Matchers {
     val rule2 = Rule(Set(b), a)
     val rules = Set(rule1, rule2)
 
-    val abap = ABA_Plus(assumptions, Set(), rules)
+    val abap = new ABA_Plus(assumptions, Set(), rules)
 
     assert(abap.generate_arguments(a) == Set(Set(b)))
   }
@@ -183,7 +188,7 @@ class AbaPlusTest extends FunSuite with Matchers {
     val rule5 = Rule(Set(e), a)
     val rules = Set(rule1, rule2, rule3, rule4, rule5)
 
-    val abap = ABA_Plus(assumptions, Set(), rules)
+    val abap = new ABA_Plus(assumptions, Set(), rules)
 
     assert(abap.generate_arguments(a) == Set(Set(e)))
   }
@@ -201,7 +206,7 @@ class AbaPlusTest extends FunSuite with Matchers {
     val rule3 = Rule(Set(c), p)
     val rules = Set(rule1, rule2, rule3)
 
-    val abap = ABA_Plus(assumptions, Set(), rules)
+    val abap = new ABA_Plus(assumptions, Set(), rules)
 
     assert(abap.generate_arguments(p) == Set(Set(c), Set(a, b, c)))
   }
@@ -214,7 +219,7 @@ class AbaPlusTest extends FunSuite with Matchers {
     val rule = Rule(Set(b), a)
     val rules = Set(rule)
 
-    val abap = ABA_Plus(assumptions, Set(), rules)
+    val abap = new ABA_Plus(assumptions, Set(), rules)
 
     assert(abap.generate_arguments(a) == Set())
   }
@@ -247,7 +252,7 @@ class AbaPlusTest extends FunSuite with Matchers {
     val rules = Set(rule1, rule2, rule3, rule4, rule5,
                     rule6, rule7, rule8, rule9, rule10)
 
-    val abap = ABA_Plus(assumptions, Set(), rules)
+    val abap = new ABA_Plus(assumptions, Set(), rules)
 
     assert(abap.generate_arguments(alpha) == Set(Set(alpha)))
     assert(abap.generate_arguments(beta) == Set(Set(beta)))
@@ -290,7 +295,7 @@ class AbaPlusTest extends FunSuite with Matchers {
     val rules = Set(rule1, rule2, rule3, rule4, rule5, rule6,
                     rule7, rule8, rule9, rule10, rule11, rule12)
 
-    val abap = ABA_Plus(assumptions, Set(), rules)
+    val abap = new ABA_Plus(assumptions, Set(), rules)
 
     assert(abap.generate_arguments(alpha) == Set(Set(alpha)))
     assert(abap.generate_arguments(beta) == Set(Set(beta)))
@@ -326,11 +331,90 @@ class AbaPlusTest extends FunSuite with Matchers {
 
     val rules = Set(rule1, rule2, rule3, rule4, rule5, rule6, rule7, rule8, rule9)
 
-    val abap = ABA_Plus(assumptions, Set(), rules)
+    val abap = new ABA_Plus(assumptions, Set(), rules)
 
     assert(abap.generate_arguments(alpha) == Set(Set(alpha)))
     assert(abap.generate_arguments(beta) == Set(Set(beta)))
     assert(abap.generate_arguments(a) == Set(Set()))
     assert(abap.generate_arguments(b) == Set(Set(beta)))
+  }
+
+  test("test_simple_generate_arguments_and_attacks1") {
+    val a = Sentence("a")
+    val b = Sentence("b")
+    val c = Sentence("c")
+    val assumptions = Set(a, b, c)
+
+    val rule = Rule(Set(a, c), b.contrary())
+    val rules = Set(rule)
+
+    val pref1 = Preference(a, b, PreferenceRelation.LESS_THAN)
+    val pref2 = Preference(c, b, PreferenceRelation.LESS_THAN)
+    val preferences = Set(pref1, pref2)
+
+    val abap = new ABA_Plus(assumptions, preferences, rules)
+
+    val res = abap.generate_arguments_and_attacks_for_contraries
+    val deductions = res._1
+    val attacks = res._2
+
+    assert(deductions(a) == Set(Deduction(Set(a), Set(a))))
+    assert(deductions(b) == Set(Deduction(Set(b), Set(b))))
+    assert(deductions(c) == Set(Deduction(Set(c), Set(c))))
+    assert(deductions(b.contrary()) == Set(Deduction(Set(a, c), Set(b.contrary()))))
+    assert(deductions.size == 4)
+
+    assert(attacks == Set
+      (Attack(Deduction(Set(b), Set(b)), Deduction(Set(a, c), Set(b.contrary())),
+              AttackType.REVERSE_ATK)))
+  }
+
+  test("test_simple_generate_arguments_and_attacks2") {
+    val a = Sentence("a")
+    val b = Sentence("b")
+    val c = Sentence("c")
+    val assumptions = Set(a, b, c)
+
+    val rule1 = Rule(Set(a, c), b.contrary())
+    val rule2 = Rule(Set(b, c), a.contrary())
+    val rule3 = Rule(Set(a, b), c.contrary())
+    val rules = Set(rule1, rule2, rule3)
+
+    val pref1 = Preference(a, b, PreferenceRelation.LESS_THAN)
+    val pref2 = Preference(c, b, PreferenceRelation.LESS_THAN)
+    val preferences = Set(pref1, pref2)
+
+    val abap = new ABA_Plus(assumptions, preferences, rules)
+
+    val res = abap.generate_arguments_and_attacks(
+      Set(a.contrary(), b.contrary(), c.contrary()))
+    val deductions = res._1
+    val attacks = res._2
+
+    val ded_a = Deduction(Set(a), Set(a))
+    val ded_b = Deduction(Set(b), Set(b))
+    val ded_c = Deduction(Set(c), Set(c))
+    val ded_contr_a = Deduction(Set(b, c), Set(a.contrary()))
+    val ded_contr_b = Deduction(Set(a, c), Set(b.contrary()))
+    val ded_contr_c = Deduction(Set(a, b), Set(c.contrary()))
+
+    assert(deductions(a) == Set(ded_a))
+    assert(deductions(b) == Set(ded_b))
+    assert(deductions(c) == Set(ded_c))
+    assert(deductions(a.contrary()) == Set(ded_contr_a))
+    assert(deductions(b.contrary()) == Set(ded_contr_b))
+    assert(deductions(c.contrary()) == Set(ded_contr_c))
+    assert(deductions.size == 6)
+
+    assert(attacks == Set
+      (Attack(ded_b, ded_contr_b, AttackType.REVERSE_ATK),
+       Attack(ded_contr_a, ded_a, AttackType.NORMAL_ATK),
+       Attack(ded_contr_c, ded_c, AttackType.NORMAL_ATK),
+       Attack(ded_contr_a, ded_contr_c, AttackType.NORMAL_ATK),
+       Attack(ded_contr_a, ded_contr_b, AttackType.NORMAL_ATK),
+       Attack(ded_contr_a, ded_contr_b, AttackType.REVERSE_ATK),
+       Attack(ded_contr_c, ded_contr_a, AttackType.NORMAL_ATK),
+       Attack(ded_contr_c, ded_contr_b, AttackType.REVERSE_ATK),
+       Attack(ded_contr_c, ded_contr_b, AttackType.NORMAL_ATK)))
   }
 }
