@@ -320,13 +320,6 @@ case class WCPViolationException(message: String = "", cause: Throwable = null)
   extends Exception(message, cause)
 
 object ABA_Plus {
-  def debug1() = {
-    new ABA_Plus(Set(Sentence("c"), Sentence("d")),
-                 Set(),
-                 Set(Rule(Set(), Sentence("a")),
-                     Rule(Set(), Sentence("b")))).is_flat()
-  }
-
   /**
    * Calculate the transitive closure of preference relations. These should be
    * added to the given set of preferences.
