@@ -99,6 +99,13 @@ final class ABA_Plus
   def is_preferred(assump1: Sentence, assump2: Sentence) =
     get_relation(assump2, assump1) == PreferenceRelation.LESS_THAN
 
+  /**
+   * Check if to_deduce can be deduced from deduce_from.
+   * https://github.com/zb95/2016-ABAPlus/blob/a8bfcfcfa3092f0aca7aa08e5f1b06545730f270/aba_plus_.py#L172
+   * @param to_deduce A Sentence to deduce.
+   * @param deduce_from A set of Sentences to deduce from.
+   * @return True, if to_deduce can be deduced from deduce_from.
+   */
   def deduction_exists(to_deduce: Sentence, deduce_from: Set[Sentence]) = {
     val rules_applied = mutable.Set[Rule]()
     val deduced = mutable.Set[Sentence]()
@@ -129,6 +136,7 @@ final class ABA_Plus
 
   /**
    * Get all Sentences that can be derived from deduce_from.
+   * // https://github.com/zb95/2016-ABAPlus/blob/a8bfcfcfa3092f0aca7aa08e5f1b06545730f270/aba_plus_.py#L195
    * @param deduce_from A set of Sentences.
    * @return A set of all Sentences that can be derived from deduce_from.
    */
