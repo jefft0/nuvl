@@ -21,7 +21,9 @@ import scala.collection.mutable
 object Wikidata {
   // Class Items
   final val QEntity = 35120;
+  final val Qevent = 1190554;
   final val QIanaTimeZone = 17272692;
+  final val Qtravel = 61509;
 
   // Individual Items
   final val QNull = 543287;
