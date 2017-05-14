@@ -23,5 +23,5 @@ case class Sentence(symbol: String, is_contrary: Boolean = false) {
   def this(symbol: String, is_contrary: java.lang.Boolean) =
     this(symbol, is_contrary.booleanValue)
 
-  def contrary() = Sentence(symbol, !is_contrary)
+  def contrary = Sentence(symbol, !is_contrary)
 }

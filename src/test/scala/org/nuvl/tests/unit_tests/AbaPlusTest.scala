@@ -483,7 +483,7 @@ class AbaPlusTest extends FunSuite with Matchers {
     val c = Sentence("c")
     val assumptions = Set(a, b, c)
 
-    val rule = Rule(Set(a, c), b.contrary())
+    val rule = Rule(Set(a, c), b.contrary)
     val rules = Set(rule)
 
     val pref1 = Preference(a, b, PreferenceRelation.LESS_THAN)
@@ -499,11 +499,11 @@ class AbaPlusTest extends FunSuite with Matchers {
     assert(deductions(a) == Set(Deduction(Set(a), Set(a))))
     assert(deductions(b) == Set(Deduction(Set(b), Set(b))))
     assert(deductions(c) == Set(Deduction(Set(c), Set(c))))
-    assert(deductions(b.contrary()) == Set(Deduction(Set(a, c), Set(b.contrary()))))
+    assert(deductions(b.contrary) == Set(Deduction(Set(a, c), Set(b.contrary))))
     assert(deductions.size == 4)
 
     assert(attacks == Set
-      (Attack(Deduction(Set(b), Set(b)), Deduction(Set(a, c), Set(b.contrary())),
+      (Attack(Deduction(Set(b), Set(b)), Deduction(Set(a, c), Set(b.contrary)),
               AttackType.REVERSE_ATK)))
   }
 
@@ -513,9 +513,9 @@ class AbaPlusTest extends FunSuite with Matchers {
     val c = Sentence("c")
     val assumptions = Set(a, b, c)
 
-    val rule1 = Rule(Set(a, c), b.contrary())
-    val rule2 = Rule(Set(b, c), a.contrary())
-    val rule3 = Rule(Set(a, b), c.contrary())
+    val rule1 = Rule(Set(a, c), b.contrary)
+    val rule2 = Rule(Set(b, c), a.contrary)
+    val rule3 = Rule(Set(a, b), c.contrary)
     val rules = Set(rule1, rule2, rule3)
 
     val pref1 = Preference(a, b, PreferenceRelation.LESS_THAN)
@@ -525,23 +525,23 @@ class AbaPlusTest extends FunSuite with Matchers {
     val abap = new ABA_Plus(assumptions, preferences, rules)
 
     val res = abap.generate_arguments_and_attacks(
-      Set(a.contrary(), b.contrary(), c.contrary()))
+      Set(a.contrary, b.contrary, c.contrary))
     val deductions = res._1
     val attacks = res._2
 
     val ded_a = Deduction(Set(a), Set(a))
     val ded_b = Deduction(Set(b), Set(b))
     val ded_c = Deduction(Set(c), Set(c))
-    val ded_contr_a = Deduction(Set(b, c), Set(a.contrary()))
-    val ded_contr_b = Deduction(Set(a, c), Set(b.contrary()))
-    val ded_contr_c = Deduction(Set(a, b), Set(c.contrary()))
+    val ded_contr_a = Deduction(Set(b, c), Set(a.contrary))
+    val ded_contr_b = Deduction(Set(a, c), Set(b.contrary))
+    val ded_contr_c = Deduction(Set(a, b), Set(c.contrary))
 
     assert(deductions(a) == Set(ded_a))
     assert(deductions(b) == Set(ded_b))
     assert(deductions(c) == Set(ded_c))
-    assert(deductions(a.contrary()) == Set(ded_contr_a))
-    assert(deductions(b.contrary()) == Set(ded_contr_b))
-    assert(deductions(c.contrary()) == Set(ded_contr_c))
+    assert(deductions(a.contrary) == Set(ded_contr_a))
+    assert(deductions(b.contrary) == Set(ded_contr_b))
+    assert(deductions(c.contrary) == Set(ded_contr_c))
     assert(deductions.size == 6)
 
     assert(attacks == Set

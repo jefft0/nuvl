@@ -31,7 +31,7 @@ final class ABA_Plus
   (val assumptions: Set[Sentence], preferencesIn: Set[Preference], val rules: Set[Rule]) {
   import ABA_Plus._
 
-  if (!is_flat())
+  if (!is_flat)
     throw NonFlatException("The framework is not flat!")
 
   // Note that this throws CyclicPreferenceException if needed.
@@ -42,7 +42,7 @@ final class ABA_Plus
     else
       preferencesIn union ABA_Plus.calc_transitive_closure(assumptions, preferencesIn)
 
-  if (!preferences_only_between_assumptions())
+  if (!preferences_only_between_assumptions)
     throw InvalidPreferenceException("Non-assumption in preference detected!")
 
   // TODO: check_or_auto_WCP
@@ -52,14 +52,14 @@ final class ABA_Plus
    * https://github.com/zb95/2016-ABAPlus/blob/f619e7a982d3b19a76ed64bb5fe5dd11b22dad72/aba_plus_.py#L71
    * @return True if framework is flat, false otherwise.
    */
-  def is_flat() = !rules.exists(assumptions contains _.consequent)
+  def is_flat = !rules.exists(assumptions contains _.consequent)
 
   /**
    * Check if preference relations are only between assumptions.
    * https://github.com/zb95/2016-ABAPlus/blob/f619e7a982d3b19a76ed64bb5fe5dd11b22dad72/aba_plus_.py#L82
    * @return True if only between assumptions, false otherwise
    */
-  def preferences_only_between_assumptions() =
+  def preferences_only_between_assumptions =
     !preferences.exists(pref => !(assumptions contains pref.assump1) ||
                                 !(assumptions contains pref.assump2))
 
@@ -193,7 +193,7 @@ final class ABA_Plus
           var args_lacking = false
           if (rule.antecedent.isEmpty)
             supporting_assumptions += mutable.Set(Set())
-          val _rules_seen = rules_seen.clone()
+          val _rules_seen = rules_seen.clone
           _rules_seen += rule
           for (ant <- rule.antecedent) {
             if (args_lacking != true) {
@@ -246,17 +246,17 @@ final class ABA_Plus
           val arg_deduction = Deduction(arg, Set(sentence))
           deductions(sentence) += arg_deduction
 
-          if (sentence.is_contrary && (assumptions contains sentence.contrary())) {
+          if (sentence.is_contrary && (assumptions contains sentence.contrary)) {
             val trivial_arg = Deduction(
-              Set(sentence.contrary()), Set(sentence.contrary()))
+              Set(sentence.contrary), Set(sentence.contrary))
 
-            if (attack_successful(arg, sentence.contrary())) {
+            if (attack_successful(arg, sentence.contrary)) {
               attacks += Attack(arg_deduction, trivial_arg, AttackType.NORMAL_ATK)
 
               val f_arg = arg
-              if (!(atk_map contains sentence.contrary()))
-                atk_map(sentence.contrary()) = mutable.Set()
-              atk_map(sentence.contrary()) += f_arg
+              if (!(atk_map contains sentence.contrary))
+                atk_map(sentence.contrary) = mutable.Set()
+              atk_map(sentence.contrary) += f_arg
             }
             else {
               attacks += Attack(trivial_arg, arg_deduction, AttackType.REVERSE_ATK)
@@ -264,7 +264,7 @@ final class ABA_Plus
               val f_arg = arg
               if (!(reverse_atk_map contains f_arg))
                 reverse_atk_map(f_arg) = mutable.Set()
-              reverse_atk_map(f_arg) += sentence.contrary()
+              reverse_atk_map(f_arg) += sentence.contrary
             }
           }
         }
@@ -301,7 +301,7 @@ final class ABA_Plus
   }
 
   def generate_arguments_and_attacks_for_contraries =
-    generate_arguments_and_attacks(assumptions.map(asm => asm.contrary()))
+    generate_arguments_and_attacks(assumptions.map(asm => asm.contrary))
 
   /**
    * Check if attacker attacks attackee successfully,
