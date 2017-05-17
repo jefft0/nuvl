@@ -7,6 +7,8 @@
 
 # JUnit output
 /TEST*.xml
+/test*.lp
+/temp*.lp
 
 # Javadoc output
 /doc
