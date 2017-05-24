@@ -59,6 +59,7 @@ object Wikidata {
   final val Plocation = 276;
   final val PmainRegulatoryText = 92;
   final val Pof = 642;
+  final val Poperator = 137;
   final val Pparticipant = 710;
   final val PpartOf = 361;
   final val PpointInTime = 585;
