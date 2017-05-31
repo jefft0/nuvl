@@ -51,6 +51,7 @@ object Wikidata {
   final val PhasCause = 828;
   final val PiataAirportCode = 238;
   final val Pinception = 571;
+  final val Pincluding = 1012;
   final val PinstanceOf = 31;
   final val PlatestDate = 1326;
   final val PlocatedInTheAdministrativeTerritorialEntity = 131;
