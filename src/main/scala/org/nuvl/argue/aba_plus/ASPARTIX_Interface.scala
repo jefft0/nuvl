@@ -81,7 +81,7 @@ final class ASPARTIX_Interface
   }
 
   /**
-   * Calculate the admissible extensions of the ABA+ framework giben to the
+   * Calculate the admissible extensions of the ABA+ framework given to the
    * constructor.
    * @return The set of extensions where each extension is the set of assumptions.
    */
@@ -89,7 +89,7 @@ final class ASPARTIX_Interface
     CLINGO_COMMAND_NAME, CLINGO_COMMAND_ARGS, ADMISSIBLE_DL, CLINGO_ANSWER, CLINGO_REGEX)
 
   /**
-   * Calculate the stable extensions of the ABA+ framework giben to the
+   * Calculate the stable extensions of the ABA+ framework given to the
    * constructor.
    * @return The set of extensions where each extension is the set of assumptions.
    */
@@ -99,7 +99,7 @@ final class ASPARTIX_Interface
   // TODO: calculate_ideal_extensions
 
   /**
-   * Calculate the complete extensions of the ABA+ framework giben to the
+   * Calculate the complete extensions of the ABA+ framework given to the
    * constructor.
    * @return The set of extensions where each extension is the set of assumptions.
    */
@@ -107,7 +107,7 @@ final class ASPARTIX_Interface
     CLINGO_COMMAND_NAME, CLINGO_COMMAND_ARGS, COMPLETE_DL, CLINGO_ANSWER, CLINGO_REGEX)
 
   /**
-   * Calculate the preferred extensions of the ABA+ framework giben to the
+   * Calculate the preferred extensions of the ABA+ framework given to the
    * constructor.
    * @return The set of extensions where each extension is the set of assumptions.
    */
@@ -115,7 +115,7 @@ final class ASPARTIX_Interface
     CLINGO_COMMAND_NAME, CLINGO_COMMAND_ARGS, PREFERRED_DL, CLINGO_ANSWER, CLINGO_REGEX)
 
   /**
-   * Calculate the grounded extensions of the ABA+ framework giben to the
+   * Calculate the grounded extensions of the ABA+ framework given to the
    * constructor.
    * @return The set of extensions where each extension is the set of assumptions.
    */
