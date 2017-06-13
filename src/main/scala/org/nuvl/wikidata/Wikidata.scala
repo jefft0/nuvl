@@ -34,6 +34,7 @@ object Wikidata {
   final val Pas = 794;
   final val PcastMember = 161;
   final val PcontainsAdministrativeTerritorialEntity = 150;
+  final val PcontainsSettlement = 1383;
   final val PcoordinateLocation = 625;
   final val Pcountry = 17;
   final val PdescribedAtUrl = 973;
