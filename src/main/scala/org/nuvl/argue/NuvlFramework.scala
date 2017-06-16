@@ -16,6 +16,7 @@ limitations under the License.
 
 package org.nuvl.argue
 
+import scala.collection.JavaConversions
 import scala.collection.mutable
 
 import org.nuvl.argue.aba_plus.ABA_Plus
@@ -45,6 +46,11 @@ object NuvlFramework {
 
     new ABA_Plus(assumptions.map(atAssumption), Set(), rules.toSet)
   }
+
+  def makeFrameworkJava(assumptions: Object, baseRules: Object) =
+    makeFramework(
+      JavaConversions.asScalaSet(assumptions.asInstanceOf[java.util.HashSet[Sentence]]).toSet,
+      JavaConversions.asScalaSet(baseRules.asInstanceOf[java.util.HashSet[Rule]]).toSet)
 
   // TODO: What if the assumption is a contrary?
   def atAssumption(assumption: Sentence) = Sentence("@" + assumption.symbol)
