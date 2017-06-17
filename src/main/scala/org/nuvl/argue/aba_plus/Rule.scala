@@ -20,6 +20,7 @@ package org.nuvl.argue.aba_plus
 
 // https://github.com/zb95/2016-ABAPlus/blob/4b189ec939d3033dd5100c20ce2fde2f94ad51ae/aba_plus_.py#L430
 case class Rule(antecedent: Set[Sentence], consequent: Sentence) {
+  def this(consequent: Sentence) = this(Set[Sentence](), consequent)
   def this(antecedent1: Sentence, consequent: Sentence) =
     this(Set[Sentence](antecedent1), consequent)
   def this(antecedent1: Sentence, antecedent2: Sentence, consequent: Sentence) =
