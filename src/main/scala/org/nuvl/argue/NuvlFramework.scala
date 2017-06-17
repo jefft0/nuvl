@@ -20,57 +20,46 @@ import scala.collection.JavaConversions
 import scala.collection.mutable
 
 import org.nuvl.argue.aba_plus.ABA_Plus
+import org.nuvl.argue.aba_plus.ASPARTIX_Interface
 import org.nuvl.argue.aba_plus.Rule
 import org.nuvl.argue.aba_plus.Sentence
 
-object NuvlFramework {
-  def makeFramework(assumptions: Set[Sentence], baseRules: Set[Rule]) = {
-    var rules = mutable.Set[Rule]()
-    rules ++= baseRules
+final class NuvlFramework(assumptions: Set[Sentence], baseRules: Set[Rule]) {
+  import NuvlFramework._
 
-    // Add rule transpositions.
-    for (rule <- baseRules) {
-      // The transposition of [a1, a2] -> b is
-      // [a2, b.contrary] -> a1.contrary and [a1, b.contrary] -> a2.contrary.
-      for (a <- rule.antecedent) {
-        val newAntecedent = (rule.antecedent - a) + rule.consequent.contrary
-        rules += Rule(newAntecedent, a.contrary)
-      }
+  val rules = mutable.Set[Rule]()
+  rules ++= baseRules
+
+  // Add rule transpositions.
+  for (rule <- baseRules) {
+    // The transposition of [a1, a2] -> b is
+    // [a2, b.contrary] -> a1.contrary and [a1, b.contrary] -> a2.contrary.
+    for (a <- rule.antecedent) {
+      val newAntecedent = (rule.antecedent - a) + rule.consequent.contrary
+      rules += Rule(newAntecedent, a.contrary)
     }
-
-    // Add rules for [@a] -> a , and its transposition.
-    for (assumption <- assumptions) {
-      rules += Rule(Set(atAssumption(assumption)), assumption)
-      rules += Rule(Set(assumption.contrary), atAssumption(assumption).contrary)
-    }
-
-    new ABA_Plus(assumptions.map(atAssumption), Set(), rules.toSet)
   }
 
-  def makeFrameworkJava(assumptions: Object, baseRules: Object) =
-    makeFramework(
-      JavaConversions.asScalaSet(assumptions.asInstanceOf[java.util.HashSet[Sentence]]).toSet,
-      JavaConversions.asScalaSet(baseRules.asInstanceOf[java.util.HashSet[Rule]]).toSet)
+  // Add rules for [@a] -> a , and its transposition.
+  for (assumption <- assumptions) {
+    rules += Rule(Set(atAssumption(assumption)), assumption)
+    rules += Rule(Set(assumption.contrary), atAssumption(assumption).contrary)
+  }
 
+  val aba = new ABA_Plus(assumptions.map(atAssumption), Set(), rules.toSet)
+
+  val preferredExtensions = new ASPARTIX_Interface(aba).calculate_preferred_extensions
+  // The grounded extension is the intersection of the preferred extensions.
+  val groundedExtension = preferredExtensions.foldLeft(
+    preferredExtensions.head)(_ & _)
+
+  def this(assumptions: java.util.HashSet[Sentence], 
+           baseRules: java.util.HashSet[Rule]) =
+    this(JavaConversions.asScalaSet(assumptions).toSet,
+         JavaConversions.asScalaSet(baseRules).toSet)
+}
+
+object NuvlFramework {
   // TODO: What if the assumption is a contrary?
   def atAssumption(assumption: Sentence) = Sentence("@" + assumption.symbol)
 }
-/*
-    val framework = NuvlFramework.makeFramework(assumptions, rules)
-    val asp = new ASPARTIX_Interface(framework)
-    val preferredExtensions = asp.calculate_preferred_extensions
-    // The grounded extension is the intersection of the preferred extensions.
-    val groundedExtension = preferredExtensions.foldLeft(
-      preferredExtensions.head)(_ & _)
-    System.out.println("groundedExtension " + groundedExtension);
-    System.out.println("grounded deductions " +
-      framework.generate_all_deductions(groundedExtension));
-
-    for (extension <- preferredExtensions) {
-      System.out.println("extension " + extension);
-      val nonGroundedAssumptions = extension -- groundedExtension
-      System.out.println("  nonGroundedAssumptions " + nonGroundedAssumptions);
-      System.out.println("  nonGrounded deductions " +
-        framework.generate_all_deductions(nonGroundedAssumptions));
-    }
-*/
