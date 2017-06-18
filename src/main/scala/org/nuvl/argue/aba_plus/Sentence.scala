@@ -25,4 +25,6 @@ case class Sentence(symbol: String, is_contrary: Boolean = false) {
     this(symbol, is_contrary.booleanValue)
 
   def contrary = Sentence(symbol, !is_contrary)
+
+  override def toString = if (is_contrary) "(not " + symbol + ")" else symbol
 }
