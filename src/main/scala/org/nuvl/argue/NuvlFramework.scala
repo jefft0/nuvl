@@ -48,10 +48,11 @@ final class NuvlFramework(assumptions: Set[Sentence], baseRules: Set[Rule]) {
 
   val aba = new ABA_Plus(assumptions.map(atAssumption), Set(), rules.toSet)
 
-  val preferredExtensions = new ASPARTIX_Interface(aba).calculate_preferred_extensions
-  // The grounded extension is the intersection of the preferred extensions.
-  val groundedExtension = preferredExtensions.foldLeft(
-    preferredExtensions.head)(_ & _)
+  val (preferredExtensions, groundedExtension) = {
+    val aspartix = new ASPARTIX_Interface(aba)
+    (aspartix.calculate_preferred_extensions,
+     aspartix.calculate_grounded_extensions.head)
+  }
 
   def this(assumptions: java.util.HashSet[Sentence], 
            baseRules: java.util.HashSet[Rule]) =
