@@ -58,6 +58,7 @@ object Wikidata {
   final val PlocatedInTheAdministrativeTerritorialEntity = 131;
   final val PlocatedInTimeZone = 421;
   final val PlocatedOnStreet = 669;
+  final val PlocatedOnTerrainFeature = 706;
   final val Plocation = 276;
   final val PmainRegulatoryText = 92;
   final val Pof = 642;
