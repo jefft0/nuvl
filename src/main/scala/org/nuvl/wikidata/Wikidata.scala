@@ -70,6 +70,7 @@ object Wikidata {
   final val PreferenceUrl = 854;
   final val Preplaces = 1365;
   final val Pretrieved = 813;
+  final val PserviceEntry = 729;
   final val PsignificantEvent = 793;
   final val PsourcingCircumstances = 1480;
   final val PstartPeriod = 3415;
