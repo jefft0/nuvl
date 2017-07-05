@@ -43,6 +43,7 @@ object Wikidata {
   final val PdiscontinuedDate = 2669;
   final val PdissolvedOrAbolished = 576;
   final val PearliestDate = 1319;
+  final val PendCause = 1534;
   final val PendPeriod = 3416;
   final val PendTime = 582;
   final val PequivalentClass = 1709;
