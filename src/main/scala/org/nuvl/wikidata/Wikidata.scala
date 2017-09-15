@@ -56,6 +56,7 @@ object Wikidata {
   final val Pincluding = 1012;
   final val PinstanceOf = 31;
   final val PlatestDate = 1326;
+  final val PlocatedAtStreetAddress = 969;
   final val PlocatedInTheAdministrativeTerritorialEntity = 131;
   final val PlocatedInTimeZone = 421;
   final val PlocatedOnStreet = 669;
@@ -63,10 +64,13 @@ object Wikidata {
   final val Plocation = 276;
   final val PmainRegulatoryText = 92;
   final val Pof = 642;
+  final val PofficialName = 1448;
   final val Poperator = 137;
+  final val PownedBy = 127;
   final val Pparticipant = 710;
   final val PpartOf = 361;
   final val PpointInTime = 585;
+  final val PpostalCode = 281;
   final val Pproportion = 1107;
   final val PreasonForDeprecation = 2241;
   final val PreferenceUrl = 854;
