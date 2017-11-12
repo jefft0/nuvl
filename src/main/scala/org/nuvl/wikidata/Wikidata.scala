@@ -63,6 +63,7 @@ object Wikidata {
   final val PlocatedOnTerrainFeature = 706;
   final val Plocation = 276;
   final val PmainRegulatoryText = 92;
+  final val PobjectHasRole = 3831;
   final val Pof = 642;
   final val PofficialName = 1448;
   final val Poperator = 137;
@@ -86,6 +87,7 @@ object Wikidata {
   final val PstatementDisputedBy = 1310;
   final val PstreetNumber = 670;
   final val PsubclassOf = 279;
+  final val PsubjectHasRole = 2868;
   final val PsubjectOf = 805;
   final val Puse = 366;
   final val PvalidInPeriod = 1264;
