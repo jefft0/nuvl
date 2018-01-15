@@ -37,6 +37,7 @@ object Wikidata {
   final val PcontainsSettlement = 1383;
   final val PcoordinateLocation = 625;
   final val Pcountry = 17;
+  final val PcriterionUsed = 1013;
   final val PdescribedAtUrl = 973;
   final val PdestinationPoint = 1444;
   final val Pdirection = 560;
@@ -66,6 +67,8 @@ object Wikidata {
   final val PobjectHasRole = 3831;
   final val Pof = 642;
   final val PofficialName = 1448;
+  final val PopenStreetMapRelationIdentifier = 402;
+  final val PopenStreetMapTagOrKey = 1282;
   final val Poperator = 137;
   final val PownedBy = 127;
   final val Pparticipant = 710;
