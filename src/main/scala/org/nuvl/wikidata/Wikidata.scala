@@ -30,7 +30,9 @@ object Wikidata {
 
   // Properties
   final val PappliesToPart = 518;
+  final val PappliesToJurisdiction = 1001;
   final val Parchitect = 84;
+  final val Parea = 2046;
   final val Pas = 794;
   final val PcastMember = 161;
   final val PcontainsAdministrativeTerritorialEntity = 150;
@@ -52,6 +54,7 @@ object Wikidata {
   final val Pexcluding = 1011;
   final val Pfollows = 155;
   final val PhasCause = 828;
+  final val PheadquartersLocation = 159;
   final val PiataAirportCode = 238;
   final val Pinception = 571;
   final val Pincluding = 1012;
